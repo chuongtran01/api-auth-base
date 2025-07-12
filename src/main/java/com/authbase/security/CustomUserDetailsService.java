@@ -28,11 +28,11 @@ public class CustomUserDetailsService implements UserDetailsService {
   private final UserRepository userRepository;
 
   @Override
-  public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-    log.debug("Loading user by username: {}", username);
+  public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+    log.debug("Loading user by email: {}", email);
 
-    User user = userRepository.findByUsername(username)
-        .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
+    User user = userRepository.findByEmail(email)
+        .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
 
     return createUserDetails(user);
   }
@@ -49,10 +49,10 @@ public class CustomUserDetailsService implements UserDetailsService {
         .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getName()))
         .collect(Collectors.toList());
 
-    log.debug("Created UserDetails for user: {} with {} roles", user.getUsername(), authorities.size());
+    log.debug("Created UserDetails for user: {} with {} roles", user.getEmail(), authorities.size());
 
     return org.springframework.security.core.userdetails.User.builder()
-        .username(user.getUsername())
+        .username(user.getEmail())
         .password(user.getPassword())
         .authorities(authorities)
         .accountExpired(!user.isAccountNonExpired())

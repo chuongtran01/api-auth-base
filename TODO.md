@@ -43,6 +43,7 @@
   - [x] isEnabled, isEmailVerified
   - [x] createdAt, updatedAt, lastLoginAt
   - [x] role/permissions (ManyToMany with Role entity)
+  - [x] **Email as unique identifier, username optional**
 - [x] Create `Role` entity: ✅ **COMPLETED**
   - [x] id, name, description
   - [x] permissions (ManyToMany with Permission entity)
@@ -111,7 +112,7 @@
   - [x] User profile update ✅ **COMPLETED**
   - [x] User deletion ✅ **COMPLETED**
 - [x] Create `AuthenticationService`: ✅ **COMPLETED**
-  - [x] Login with username/password ✅ **COMPLETED**
+  - [x] Login with email/password ✅ **COMPLETED**
   - [x] Generate JWT tokens ✅ **COMPLETED**
   - [x] Refresh token logic ✅ **COMPLETED**
   - [x] Logout functionality ✅ **COMPLETED**

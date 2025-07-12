@@ -28,20 +28,21 @@ public class UserServiceImpl implements UserService {
   private final PasswordEncoder passwordEncoder;
 
   @Override
-  public User registerUser(String email, String username, String password, String firstName, String lastName) {
+  public User registerUser(String email, String password, String username, String firstName, String lastName) {
     log.info("Registering new user: {}", email);
 
-    // Check if user already exists
+    // Check if user already exists by email
     if (userRepository.findByEmail(email).isPresent()) {
       throw new IllegalArgumentException("User with email " + email + " already exists");
     }
 
-    if (userRepository.findByUsername(username).isPresent()) {
+    // If username is provided, check uniqueness
+    if (username != null && !username.isBlank() && userRepository.findByUsername(username).isPresent()) {
       throw new IllegalArgumentException("User with username " + username + " already exists");
     }
 
     // Create new user
-    User user = new User(email, username, passwordEncoder.encode(password), firstName, lastName);
+    User user = new User(email, passwordEncoder.encode(password), username, firstName, lastName);
     user.setIsEnabled(true);
     user.setIsEmailVerified(false);
 
@@ -52,8 +53,8 @@ public class UserServiceImpl implements UserService {
   }
 
   @Override
-  public User registerUser(String email, String username, String password) {
-    return registerUser(email, username, password, null, null);
+  public User registerUser(String email, String password, String username) {
+    return registerUser(email, password, username, null, null);
   }
 
   @Override

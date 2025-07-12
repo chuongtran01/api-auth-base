@@ -16,7 +16,7 @@ import java.util.Optional;
 public interface UserRepository extends JpaRepository<User, Long> {
 
   /**
-   * Find user by username.
+   * Find user by username (optional field).
    * 
    * @param username the username to search for
    * @return Optional containing the user if found
@@ -32,7 +32,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
   Optional<User> findByEmail(String email);
 
   /**
-   * Check if user exists by username.
+   * Check if user exists by username (optional field).
    * 
    * @param username the username to check
    * @return true if user exists, false otherwise
@@ -50,7 +50,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
   /**
    * Find user by username or email.
    * 
-   * @param usernameOrEmail username or email to search for
+   * @param usernameOrEmail username (optional) or email to search for
    * @return Optional containing the user if found
    */
   @Query("SELECT u FROM User u WHERE u.username = :usernameOrEmail OR u.email = :usernameOrEmail")

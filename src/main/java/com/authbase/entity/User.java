@@ -33,14 +33,13 @@ public class User {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
-  @NotBlank(message = "Email is required")
   @Email(message = "Email must be a valid email address")
+  @NotBlank(message = "Email is required")
   @Column(name = "email", nullable = false, unique = true, length = 255)
   private String email;
 
-  @NotBlank(message = "Username is required")
   @Size(min = 3, max = 100, message = "Username must be between 3 and 100 characters")
-  @Column(name = "username", nullable = false, unique = true, length = 100)
+  @Column(name = "username", nullable = true, unique = true, length = 100)
   private String username;
 
   @NotBlank(message = "Password is required")
@@ -86,19 +85,18 @@ public class User {
   private Set<RefreshToken> refreshTokens = new HashSet<>();
 
   // Constructor for creating users
-  public User(String email, String username, String password) {
+  public User(String email, String password) {
     this.email = email;
-    this.username = username;
     this.password = password;
     this.roles = new HashSet<>();
     this.refreshTokens = new HashSet<>();
   }
 
   // Constructor with all fields
-  public User(String email, String username, String password, String firstName, String lastName) {
+  public User(String email, String password, String username, String firstName, String lastName) {
     this.email = email;
-    this.username = username;
     this.password = password;
+    this.username = username;
     this.firstName = firstName;
     this.lastName = lastName;
     this.roles = new HashSet<>();
@@ -150,8 +148,10 @@ public class User {
       return firstName;
     } else if (lastName != null) {
       return lastName;
-    } else {
+    } else if (username != null) {
       return username;
+    } else {
+      return email;
     }
   }
 }

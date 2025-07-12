@@ -33,14 +33,20 @@ This system supports **multiple roles per user**, which provides exceptional fle
 
 ```java
 // Senior Sales Representative with multiple responsibilities
-User john = new User("john@company.com", "john", "password");
-john.addRole(employeeRole);     // Basic employee access
-john.addRole(salesRole);        // Sales operations
-john.addRole(supportRole);      // Customer support
-john.addRole(reportingRole);    // Analytics and reporting
+User john = new User("john@company.com", "password123", "john_sales", "John", "Doe");
+john.addRole(salesRole);     // Sales operations
+john.addRole(supportRole);   // Customer support
+john.addRole(mentorRole);    // Training new employees
 
-// John now has ALL permissions from ALL roles combined
-// Total: 15+ permissions from 4 different roles
+// IT Administrator with broad access
+User admin = new User("admin@company.com", "password123", "admin_user", "Admin", "User");
+admin.addRole(adminRole);    // System administration
+admin.addRole(securityRole); // Security management
+
+// Marketing Specialist with focused roles
+User sarah = new User("sarah@company.com", "password123", "sarah_marketing", "Sarah", "Smith");
+sarah.addRole(marketingRole); // Marketing operations
+sarah.addRole(analyticsRole); // Data analytics
 ```
 
 ### **Permission Calculation:**
@@ -151,7 +157,7 @@ mvn test -Dspring-boot.run.profiles=test
 - **Swagger UI**: http://localhost:8080/api/swagger-ui.html
 - **Health Check**: http://localhost:8080/api/health
 
-## �� Configuration
+## 🔄 Configuration
 
 ### Environment Profiles
 

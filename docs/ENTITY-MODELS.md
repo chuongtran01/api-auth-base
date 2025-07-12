@@ -22,7 +22,8 @@ User (1) ←→ (N) UserSession (optional)
 
 **Key Features**:
 
-- ✅ Email and username authentication
+- ✅ **Email-based authentication** (email is the unique identifier)
+- ✅ **Optional username** for display purposes
 - ✅ Profile information (first name, last name)
 - ✅ Account status tracking (enabled, email verified)
 - ✅ Timestamp tracking (created, updated, last login)
@@ -36,8 +37,8 @@ User (1) ←→ (N) UserSession (optional)
 @Table(name = "users")
 public class User {
     private Long id;                    // Primary key
-    private String email;               // Unique email address
-    private String username;            // Unique username
+    private String email;               // Unique email address (required)
+    private String username;            // Unique username (optional)
     private String password;            // Encrypted password
     private String firstName;           // First name
     private String lastName;            // Last name
@@ -53,19 +54,42 @@ public class User {
 
 **Validation**:
 
-- Email must be valid format and unique
-- Username must be 3-100 characters and unique
-- Password is required
-- First/Last name max 100 characters each
+- **Email**: Must be valid format and unique (required)
+- **Username**: Must be 3-100 characters and unique (optional)
+- **Password**: Required
+- **First/Last name**: Max 100 characters each (optional)
+
+**Authentication Strategy**:
+
+- **Primary Identifier**: Email address
+- **Login**: Users authenticate using email and password
+- **Username**: Optional display name for user-friendly identification
+- **Fallback**: If username is not provided, email is used for display purposes
 
 **Business Methods**:
 
 ```java
-public boolean isAccountNonExpired()     // Account expiration check
-public boolean isAccountNonLocked()      // Account lock check
-public boolean isCredentialsNonExpired() // Password expiration check
-public boolean isEnabled()               // Account enabled check
-public String getFullName()              // Get display name
+// Registration with email and password (username optional)
+User user = new User("user@example.com", "password", "optionalUsername", "John", "Doe");
+
+// Registration with email and password only
+User user = new User("user@example.com", "password");
+
+// Get display name (prioritizes: firstName+lastName > firstName > lastName > username > email)
+String displayName = user.getFullName();
+```
+
+**Constructor Examples**:
+
+```java
+// Minimal registration (email + password only)
+User user1 = new User("john@example.com", "password123");
+
+// Full registration with optional username
+User user2 = new User("jane@example.com", "password123", "jane_doe", "Jane", "Doe");
+
+// Registration without username
+User user3 = new User("admin@company.com", "password123", null, "Admin", "User");
 ```
 
 ### **2. Role Entity**

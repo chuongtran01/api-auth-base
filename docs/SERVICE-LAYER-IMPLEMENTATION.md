@@ -58,7 +58,7 @@ Handles all user-related business operations including registration, profile man
 
 ### Key Features
 
-- **User Registration**: Create new user accounts with validation
+- **User Registration**: Create new user accounts with email and password (username optional)
 - **Profile Management**: Update user information and preferences
 - **Password Management**: Secure password changes with current password verification
 - **Account Status**: Enable/disable accounts and email verification
@@ -71,9 +71,14 @@ Handles all user-related business operations including registration, profile man
 public class SomeController {
     private final UserService userService; // Interface injection
 
-    // Register a new user
-    public User registerUser(String email, String username, String password) {
-        return userService.registerUser(email, username, password, "John", "Doe");
+    // Register a new user with email and password only
+    public User registerUser(String email, String password) {
+        return userService.registerUser(email, password, null, "John", "Doe");
+    }
+
+    // Register a new user with optional username
+    public User registerUserWithUsername(String email, String password, String username) {
+        return userService.registerUser(email, password, username, "John", "Doe");
     }
 
     // Update user profile

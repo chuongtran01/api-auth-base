@@ -14,25 +14,25 @@ public interface UserService {
   /**
    * Register a new user.
    * 
-   * @param email     user email
-   * @param username  username
-   * @param password  plain text password
+   * @param email     user email (required)
+   * @param password  plain text password (required)
+   * @param username  username (optional)
    * @param firstName first name (optional)
    * @param lastName  last name (optional)
    * @return created user
    * @throws IllegalArgumentException if user already exists
    */
-  User registerUser(String email, String username, String password, String firstName, String lastName);
+  User registerUser(String email, String password, String username, String firstName, String lastName);
 
   /**
    * Register a new user with minimal information.
    * 
-   * @param email    user email
-   * @param username username
-   * @param password plain text password
+   * @param email    user email (required)
+   * @param password plain text password (required)
+   * @param username username (optional)
    * @return created user
    */
-  User registerUser(String email, String username, String password);
+  User registerUser(String email, String password, String username);
 
   /**
    * Find user by username.

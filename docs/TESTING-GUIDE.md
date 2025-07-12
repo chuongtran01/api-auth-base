@@ -163,7 +163,7 @@ class UserServiceTest {
         when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
 
         // When
-        User result = userService.registerUser(email, username, password);
+        User result = userService.registerUser(email, password, username);
 
         // Then
         assertThat(result.getEmail()).isEqualTo(email);
@@ -179,11 +179,38 @@ class UserServiceTest {
     }
 
     @Test
+    @DisplayName("Should register user with email and password only")
+    void registerUser_WithEmailAndPasswordOnly_ShouldCreateUser() {
+        // Given
+        String email = "test@example.com";
+        String password = "password";
+        String encodedPassword = "encodedPassword";
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(password)).thenReturn(encodedPassword);
+        when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
+
+        // When
+        User result = userService.registerUser(email, password, null);
+
+        // Then
+        assertThat(result.getEmail()).isEqualTo(email);
+        assertThat(result.getUsername()).isNull();
+        assertThat(result.getPassword()).isEqualTo(encodedPassword);
+        assertThat(result.isEnabled()).isTrue();
+        assertThat(result.isEmailVerified()).isFalse();
+
+        verify(userRepository).findByEmail(email);
+        verify(userRepository, never()).findByUsername(any());
+        verify(passwordEncoder).encode(password);
+        verify(userRepository).save(any(User.class));
+    }
+
+    @Test
     @DisplayName("Should throw exception when user with email already exists")
     void registerUser_WithExistingEmail_ShouldThrowException() {
         // Given
         String email = "existing@example.com";
-        String username = "testuser";
         String password = "password";
 
         User existingUser = new User();
@@ -192,11 +219,35 @@ class UserServiceTest {
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(existingUser));
 
         // When & Then
-        assertThatThrownBy(() -> userService.registerUser(email, username, password))
+        assertThatThrownBy(() -> userService.registerUser(email, password, null))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessage("User with email " + email + " already exists");
 
         verify(userRepository).findByEmail(email);
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("Should throw exception when username is already taken")
+    void registerUser_WithExistingUsername_ShouldThrowException() {
+        // Given
+        String email = "test@example.com";
+        String username = "existinguser";
+        String password = "password";
+
+        User existingUser = new User();
+        existingUser.setUsername(username);
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+        when(userRepository.findByUsername(username)).thenReturn(Optional.of(existingUser));
+
+        // When & Then
+        assertThatThrownBy(() -> userService.registerUser(email, password, username))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("User with username " + username + " already exists");
+
+        verify(userRepository).findByEmail(email);
+        verify(userRepository).findByUsername(username);
         verify(userRepository, never()).save(any(User.class));
     }
 }
@@ -236,7 +287,7 @@ class UserRepositoryTest {
     @DisplayName("Should find user by email")
     void findByEmail_WithExistingEmail_ShouldReturnUser() {
         // Given
-        User user = new User("test@example.com", "testuser", "password", "John", "Doe");
+        User user = new User("test@example.com", "password", "testuser", "John", "Doe");
         entityManager.persistAndFlush(user);
 
         // When
@@ -252,6 +303,31 @@ class UserRepositoryTest {
     void findByEmail_WithNonExistingEmail_ShouldReturnEmpty() {
         // When
         Optional<User> found = userRepository.findByEmail("nonexistent@example.com");
+
+        // Then
+        assertThat(found).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Should find user by username when provided")
+    void findByUsername_WithExistingUsername_ShouldReturnUser() {
+        // Given
+        User user = new User("test@example.com", "password", "testuser", "John", "Doe");
+        entityManager.persistAndFlush(user);
+
+        // When
+        Optional<User> found = userRepository.findByUsername("testuser");
+
+        // Then
+        assertThat(found).isPresent();
+        assertThat(found.get().getUsername()).isEqualTo("testuser");
+    }
+
+    @Test
+    @DisplayName("Should return empty when username not found")
+    void findByUsername_WithNonExistingUsername_ShouldReturnEmpty() {
+        // When
+        Optional<User> found = userRepository.findByUsername("nonexistentuser");
 
         // Then
         assertThat(found).isEmpty();
@@ -295,11 +371,11 @@ class AuthControllerTest {
     @DisplayName("Should return tokens on successful login")
     void login_WithValidCredentials_ShouldReturnTokens() throws Exception {
         // Given
-        LoginRequest loginRequest = new LoginRequest("testuser", "password");
-        User user = new User("test@example.com", "testuser", "password");
+        LoginRequest loginRequest = new LoginRequest("test@example.com", "password");
+        User user = new User("test@example.com", "password", "testuser");
         AuthenticationResult authResult = new AuthenticationResult("accessToken", "refreshToken", user);
 
-        when(authenticationService.authenticate("testuser", "password"))
+        when(authenticationService.authenticate("test@example.com", "password"))
             .thenReturn(authResult);
 
         // When & Then
@@ -311,16 +387,16 @@ class AuthControllerTest {
             .andExpect(jsonPath("$.refreshToken").value("refreshToken"))
             .andExpect(jsonPath("$.user.email").value("test@example.com"));
 
-        verify(authenticationService).authenticate("testuser", "password");
+        verify(authenticationService).authenticate("test@example.com", "password");
     }
 
     @Test
     @DisplayName("Should return 401 on invalid credentials")
     void login_WithInvalidCredentials_ShouldReturn401() throws Exception {
         // Given
-        LoginRequest loginRequest = new LoginRequest("testuser", "wrongpassword");
+        LoginRequest loginRequest = new LoginRequest("test@example.com", "wrongpassword");
 
-        when(authenticationService.authenticate("testuser", "wrongpassword"))
+        when(authenticationService.authenticate("test@example.com", "wrongpassword"))
             .thenThrow(new BadCredentialsException("Invalid credentials"));
 
         // When & Then
@@ -328,9 +404,9 @@ class AuthControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(loginRequest)))
             .andExpect(status().isUnauthorized())
-            .andExpect(jsonPath("$.message").value("Invalid username or password"));
+            .andExpect(jsonPath("$.message").value("Invalid email or password"));
 
-        verify(authenticationService).authenticate("testuser", "wrongpassword");
+        verify(authenticationService).authenticate("test@example.com", "wrongpassword");
     }
 }
 ```
