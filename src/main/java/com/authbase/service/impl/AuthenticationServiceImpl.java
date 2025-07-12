@@ -5,11 +5,13 @@ import com.authbase.entity.User;
 import com.authbase.repository.RefreshTokenRepository;
 import com.authbase.security.JwtTokenProvider;
 import com.authbase.service.AuthenticationService;
+import com.authbase.service.RedisTokenService;
 import com.authbase.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -37,6 +39,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
   private final JwtTokenProvider jwtTokenProvider;
   private final UserService userService;
   private final RefreshTokenRepository refreshTokenRepository;
+  private final RedisTokenService redisTokenService;
 
   @Override
   public AuthenticationResult authenticate(String username, String password) {
@@ -51,7 +54,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
       // Check if user account is enabled
       if (!user.isEnabled()) {
-        throw new IllegalArgumentException("User account is disabled");
+        throw new DisabledException("User account is disabled");
       }
 
       // Update last login timestamp
@@ -92,7 +95,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     // Get user
     User user = refreshToken.getUser();
     if (!user.isEnabled()) {
-      throw new IllegalArgumentException("User account is disabled");
+      throw new DisabledException("User account is disabled");
     }
 
     // Generate new access token
@@ -105,9 +108,23 @@ public class AuthenticationServiceImpl implements AuthenticationService {
   }
 
   @Override
-  public boolean logout(String refreshTokenString) {
-    log.info("Logging out user with refresh token");
+  public boolean logout(String refreshTokenString, String accessToken) {
+    log.info("Logging out user with refresh token and blacklisting access token");
 
+    // Blacklist the access token
+    if (accessToken != null && !accessToken.trim().isEmpty()) {
+      try {
+        // Get token expiration time
+        long expirationTime = jwtTokenProvider.getExpirationDateFromToken(accessToken).getTime();
+        redisTokenService.blacklistToken(accessToken, expirationTime);
+        log.info("Access token blacklisted successfully");
+      } catch (Exception e) {
+        log.warn("Failed to blacklist access token: {}", e.getMessage());
+        // Continue with logout even if blacklisting fails
+      }
+    }
+
+    // Delete refresh token from database
     Optional<RefreshToken> refreshTokenOpt = refreshTokenRepository.findByToken(refreshTokenString);
     if (refreshTokenOpt.isPresent()) {
       refreshTokenRepository.delete(refreshTokenOpt.get());
@@ -122,6 +139,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
   @Override
   public boolean logoutByUserId(Long userId) {
     log.info("Logging out user by ID: {}", userId);
+
+    // Remove all user sessions from Redis (this will blacklist all access tokens)
+    long removedSessions = redisTokenService.removeAllUserSessions(userId.toString());
+    log.info("Removed {} sessions from Redis for user ID: {}", removedSessions, userId);
 
     // Delete all refresh tokens for the user
     refreshTokenRepository.deleteByUserId(userId);

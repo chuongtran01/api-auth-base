@@ -38,12 +38,13 @@ public interface AuthenticationService {
   AuthenticationResult refreshToken(String refreshTokenString);
 
   /**
-   * Logout user by invalidating refresh token.
+   * Logout user by invalidating refresh token and blacklisting access token.
    * 
    * @param refreshTokenString refresh token to invalidate
+   * @param accessToken        access token to blacklist (can be null)
    * @return true if logout successful
    */
-  boolean logout(String refreshTokenString);
+  boolean logout(String refreshTokenString, String accessToken);
 
   /**
    * Logout user by user ID (admin function).

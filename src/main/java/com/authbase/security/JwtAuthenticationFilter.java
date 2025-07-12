@@ -1,6 +1,7 @@
 package com.authbase.security;
 
 import com.authbase.entity.User;
+import com.authbase.service.RedisTokenService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -33,6 +34,7 @@ import java.util.stream.Collectors;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
   private final JwtTokenProvider tokenProvider;
+  private final RedisTokenService redisTokenService;
 
   @Override
   protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -41,29 +43,41 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     try {
       String jwt = getJwtFromRequest(request);
 
-      if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
-        // Extract all user information from the token (stateless approach)
-        String username = tokenProvider.getUsernameFromToken(jwt);
-        Long userId = tokenProvider.getUserIdFromToken(jwt);
-        String email = tokenProvider.getEmailFromToken(jwt);
-        String rolesString = tokenProvider.getRolesFromToken(jwt);
+      if (StringUtils.hasText(jwt)) {
+        // Check if token is blacklisted first
+        if (redisTokenService.isTokenBlacklisted(jwt)) {
+          log.warn("Request with blacklisted token rejected: {}", request.getRequestURI());
+          response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+          response.getWriter().write("Token has been invalidated");
+          return;
+        }
 
-        if (StringUtils.hasText(username) && SecurityContextHolder.getContext().getAuthentication() == null) {
-          // Create UserDetails from token claims (no database call)
-          UserDetails userDetails = createUserDetailsFromToken(username, userId, email, rolesString);
+        // Validate token structure and signature
+        if (tokenProvider.validateToken(jwt)) {
+          // Extract all user information from the token (stateless approach)
+          String username = tokenProvider.getUsernameFromToken(jwt);
+          Long userId = tokenProvider.getUserIdFromToken(jwt);
+          String email = tokenProvider.getEmailFromToken(jwt);
+          String rolesString = tokenProvider.getRolesFromToken(jwt);
 
-          // Create authorities from roles in token
-          List<SimpleGrantedAuthority> authorities = getAuthoritiesFromRoles(rolesString);
+          if (StringUtils.hasText(username) && SecurityContextHolder.getContext().getAuthentication() == null) {
+            // Create UserDetails from token claims (no database call)
+            UserDetails userDetails = createUserDetailsFromToken(username, userId, email, rolesString);
 
-          UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-              userDetails, null, authorities);
+            // Create authorities from roles in token
+            List<SimpleGrantedAuthority> authorities = getAuthoritiesFromRoles(rolesString);
 
-          authentication.setDetails(new org.springframework.security.web.authentication.WebAuthenticationDetailsSource()
-              .buildDetails(request));
+            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                userDetails, null, authorities);
 
-          SecurityContextHolder.getContext().setAuthentication(authentication);
+            authentication
+                .setDetails(new org.springframework.security.web.authentication.WebAuthenticationDetailsSource()
+                    .buildDetails(request));
 
-          log.debug("Set stateless authentication for user: {} (ID: {})", username, userId);
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+
+            log.debug("Set stateless authentication for user: {} (ID: {})", username, userId);
+          }
         }
       }
     } catch (Exception ex) {

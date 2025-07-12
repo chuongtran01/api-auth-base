@@ -1,0 +1,49 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  # Disable Redis for testing
+  redis:
+    host: localhost
+    port: 6379
+    timeout: 1000ms
+
+  security:
+    jwt:
+      secret: test-secret-key-for-testing-purposes-only
+      access-token-validity: 3600
+      refresh-token-validity: 86400
+
+# Disable Redis features for testing
+auth:
+  redis:
+    enabled: false
+    token-blacklist-prefix: "blacklist:"
+    session-prefix: "session:"
+    user-sessions-prefix: "user_sessions:"
+
+  session:
+    max-concurrent-sessions: 5
+    session-timeout: 3600
+    cleanup-interval: 300
+
+  logout:
+    blacklist-access-tokens: false
+    remove-refresh-tokens: true
+    log-events: true
+
+logging:
+  level:
+    com.authbase: DEBUG
+    org.springframework.security: DEBUG

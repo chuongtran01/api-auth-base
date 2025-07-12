@@ -57,3 +57,36 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
     operations-sorter: method
+
+# Redis Configuration
+spring:
+  redis:
+    host: localhost
+    port: 6379
+    password: # optional - set in production
+    database: 0
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: -1ms
+
+# Redis Logout Configuration
+auth:
+  redis:
+    enabled: true
+    token-blacklist-prefix: "blacklist:"
+    session-prefix: "session:"
+    user-sessions-prefix: "user_sessions:"
+    
+  session:
+    max-concurrent-sessions: 5
+    session-timeout: 3600 # seconds
+    cleanup-interval: 300 # seconds
+    
+  logout:
+    blacklist-access-tokens: true
+    remove-refresh-tokens: true
+    log-events: true

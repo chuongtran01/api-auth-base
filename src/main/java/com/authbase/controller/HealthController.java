@@ -1,5 +1,6 @@
 package com.authbase.controller;
 
+import com.authbase.service.RedisTokenService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -13,23 +14,23 @@ import java.util.Map;
 
 /**
  * Health check controller for monitoring application status.
- * Provides basic health information and status endpoints.
+ * Provides endpoints to check the health of various components including Redis.
  */
 @RestController
-@RequestMapping("/api/health")
+@RequestMapping("/health")
 @Slf4j
 @RequiredArgsConstructor
 public class HealthController {
 
+  private final RedisTokenService redisTokenService;
+
   /**
    * Basic health check endpoint.
    * 
-   * @return health status information
+   * @return health status
    */
   @GetMapping
   public ResponseEntity<Map<String, Object>> health() {
-    log.debug("Health check requested");
-
     Map<String, Object> health = new HashMap<>();
     health.put("status", "UP");
     health.put("timestamp", LocalDateTime.now().toString());
@@ -40,28 +41,52 @@ public class HealthController {
   }
 
   /**
-   * Detailed health check endpoint.
+   * Detailed health check including Redis status.
    * 
-   * @return detailed health status information
+   * @return detailed health status
    */
-  @GetMapping("/details")
-  public ResponseEntity<Map<String, Object>> healthDetails() {
-    log.debug("Detailed health check requested");
-
+  @GetMapping("/detailed")
+  public ResponseEntity<Map<String, Object>> detailedHealth() {
     Map<String, Object> health = new HashMap<>();
     health.put("status", "UP");
     health.put("timestamp", LocalDateTime.now().toString());
     health.put("service", "api-auth-base");
     health.put("version", "0.0.1-SNAPSHOT");
-    health.put("description", "JWT Authentication Base for Spring Boot");
-    health.put("features", new String[] {
-        "JWT Authentication",
-        "Role-based Access Control",
-        "Multiple Roles per User",
-        "Database Migrations",
-        "CORS Configuration"
-    });
+
+    // Check Redis status
+    Map<String, Object> redis = new HashMap<>();
+    boolean redisAvailable = redisTokenService.isRedisAvailable();
+    redis.put("status", redisAvailable ? "UP" : "DOWN");
+    redis.put("enabled", redisTokenService.isRedisAvailable());
+    health.put("redis", redis);
+
+    // Overall status
+    String overallStatus = redisAvailable ? "UP" : "DEGRADED";
+    health.put("overallStatus", overallStatus);
 
     return ResponseEntity.ok(health);
+  }
+
+  /**
+   * Redis-specific health check.
+   * 
+   * @return Redis health status
+   */
+  @GetMapping("/redis")
+  public ResponseEntity<Map<String, Object>> redisHealth() {
+    Map<String, Object> redis = new HashMap<>();
+    boolean redisAvailable = redisTokenService.isRedisAvailable();
+
+    redis.put("status", redisAvailable ? "UP" : "DOWN");
+    redis.put("timestamp", LocalDateTime.now().toString());
+    redis.put("available", redisAvailable);
+
+    if (redisAvailable) {
+      redis.put("message", "Redis is available and responding");
+    } else {
+      redis.put("message", "Redis is not available or not responding");
+    }
+
+    return ResponseEntity.ok(redis);
   }
 }
