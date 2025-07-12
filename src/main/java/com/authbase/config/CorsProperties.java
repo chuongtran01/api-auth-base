@@ -1,5 +1,6 @@
 package com.authbase.config;
 
+import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
@@ -11,6 +12,7 @@ import java.util.List;
  */
 @Component
 @ConfigurationProperties(prefix = "cors")
+@Data
 public class CorsProperties {
 
   /**
@@ -54,53 +56,4 @@ public class CorsProperties {
    * Max age for preflight requests in seconds
    */
   private long maxAge = 3600L;
-
-  // Getters and Setters
-  public List<String> getAllowedOriginPatterns() {
-    return allowedOriginPatterns;
-  }
-
-  public void setAllowedOriginPatterns(List<String> allowedOriginPatterns) {
-    this.allowedOriginPatterns = allowedOriginPatterns;
-  }
-
-  public List<String> getAllowedMethods() {
-    return allowedMethods;
-  }
-
-  public void setAllowedMethods(List<String> allowedMethods) {
-    this.allowedMethods = allowedMethods;
-  }
-
-  public List<String> getAllowedHeaders() {
-    return allowedHeaders;
-  }
-
-  public void setAllowedHeaders(List<String> allowedHeaders) {
-    this.allowedHeaders = allowedHeaders;
-  }
-
-  public List<String> getExposedHeaders() {
-    return exposedHeaders;
-  }
-
-  public void setExposedHeaders(List<String> exposedHeaders) {
-    this.exposedHeaders = exposedHeaders;
-  }
-
-  public boolean isAllowCredentials() {
-    return allowCredentials;
-  }
-
-  public void setAllowCredentials(boolean allowCredentials) {
-    this.allowCredentials = allowCredentials;
-  }
-
-  public long getMaxAge() {
-    return maxAge;
-  }
-
-  public void setMaxAge(long maxAge) {
-    this.maxAge = maxAge;
-  }
 }

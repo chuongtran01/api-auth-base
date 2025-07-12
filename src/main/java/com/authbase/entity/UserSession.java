@@ -3,6 +3,7 @@ package com.authbase.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
@@ -16,6 +17,13 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "user_sessions")
 @EntityListeners(AuditingEntityListener.class)
+@Getter
+@Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Builder
+@ToString(exclude = { "user" })
+@EqualsAndHashCode(exclude = { "createdAt", "lastActivityAt", "expiresAt" })
 public class UserSession {
 
   @Id
@@ -38,6 +46,7 @@ public class UserSession {
   private String userAgent;
 
   @Column(name = "is_active", nullable = false)
+  @Builder.Default
   private Boolean isActive = true;
 
   @CreatedDate
@@ -45,14 +54,11 @@ public class UserSession {
   private LocalDateTime createdAt;
 
   @Column(name = "last_activity_at")
-  private LocalDateTime lastActivityAt;
+  @Builder.Default
+  private LocalDateTime lastActivityAt = LocalDateTime.now();
 
   @Column(name = "expires_at")
   private LocalDateTime expiresAt;
-
-  // Default constructor for JPA
-  protected UserSession() {
-  }
 
   // Constructor for creating sessions
   public UserSession(User user, String sessionId, String ipAddress, String userAgent) {
@@ -73,80 +79,7 @@ public class UserSession {
     this.lastActivityAt = LocalDateTime.now();
   }
 
-  // Getters and Setters
-  public Long getId() {
-    return id;
-  }
-
-  public void setId(Long id) {
-    this.id = id;
-  }
-
-  public User getUser() {
-    return user;
-  }
-
-  public void setUser(User user) {
-    this.user = user;
-  }
-
-  public String getSessionId() {
-    return sessionId;
-  }
-
-  public void setSessionId(String sessionId) {
-    this.sessionId = sessionId;
-  }
-
-  public String getIpAddress() {
-    return ipAddress;
-  }
-
-  public void setIpAddress(String ipAddress) {
-    this.ipAddress = ipAddress;
-  }
-
-  public String getUserAgent() {
-    return userAgent;
-  }
-
-  public void setUserAgent(String userAgent) {
-    this.userAgent = userAgent;
-  }
-
-  public Boolean getIsActive() {
-    return isActive;
-  }
-
-  public void setIsActive(Boolean isActive) {
-    this.isActive = isActive;
-  }
-
-  public LocalDateTime getCreatedAt() {
-    return createdAt;
-  }
-
-  public void setCreatedAt(LocalDateTime createdAt) {
-    this.createdAt = createdAt;
-  }
-
-  public LocalDateTime getLastActivityAt() {
-    return lastActivityAt;
-  }
-
-  public void setLastActivityAt(LocalDateTime lastActivityAt) {
-    this.lastActivityAt = lastActivityAt;
-  }
-
-  public LocalDateTime getExpiresAt() {
-    return expiresAt;
-  }
-
-  public void setExpiresAt(LocalDateTime expiresAt) {
-    this.expiresAt = expiresAt;
-  }
-
-  // Business logic methods
+  // Business Logic Methods
   public boolean isExpired() {
     return expiresAt != null && LocalDateTime.now().isAfter(expiresAt);
   }
@@ -161,35 +94,5 @@ public class UserSession {
 
   public void deactivate() {
     this.isActive = false;
-  }
-
-  // equals and hashCode
-  @Override
-  public boolean equals(Object o) {
-    if (this == o)
-      return true;
-    if (o == null || getClass() != o.getClass())
-      return false;
-    UserSession that = (UserSession) o;
-    return sessionId != null ? sessionId.equals(that.sessionId) : that.sessionId == null;
-  }
-
-  @Override
-  public int hashCode() {
-    return sessionId != null ? sessionId.hashCode() : 0;
-  }
-
-  @Override
-  public String toString() {
-    return "UserSession{" +
-        "id=" + id +
-        ", userId=" + (user != null ? user.getId() : null) +
-        ", sessionId='" + sessionId + '\'' +
-        ", ipAddress='" + ipAddress + '\'' +
-        ", isActive=" + isActive +
-        ", createdAt=" + createdAt +
-        ", lastActivityAt=" + lastActivityAt +
-        ", expiresAt=" + expiresAt +
-        '}';
   }
 }

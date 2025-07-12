@@ -4,7 +4,7 @@ A reusable JWT authentication backend built with Spring Boot 3.x that provides a
 
 ## 🚀 Features
 
-- **JWT-based Authentication**: Secure token-based authentication
+- **JWT-based Authentication**: Secure token-based authentication with complete security configuration
 - **Role-based Access Control**: Flexible permission system with **multiple roles per user**
 - **User Management**: Complete user lifecycle management
 - **Security Features**: Rate limiting, password policies, account lockout
@@ -16,6 +16,7 @@ A reusable JWT authentication backend built with Spring Boot 3.x that provides a
 - **Dependency Injection**: Constructor injection for better testability and immutability
 - **Environment Profiles**: Separate configurations for dev, test, and prod
 - **Data Persistence**: Development data persists between application restarts
+- **Security Infrastructure**: Complete JWT authentication with filters, providers, and handlers
 
 ## 🎯 **Multiple Roles Per User**
 
@@ -55,6 +56,41 @@ Set<Permission> allPermissions = PermissionUtil.getAllUserPermissions(user);
 ```
 
 📚 **For detailed examples and business scenarios, see:** [`docs/MULTIPLE-ROLES-EXAMPLES.md`](docs/MULTIPLE-ROLES-EXAMPLES.md)
+
+## 🔐 **Security Configuration**
+
+The application includes a complete JWT-based security infrastructure:
+
+### **Core Security Components:**
+
+- **SecurityConfig**: Main security configuration with JWT authentication
+- **JwtTokenProvider**: Token generation, validation, and claim extraction
+- **JwtAuthenticationFilter**: Request interception and token validation
+- **CustomUserDetailsService**: User loading from database
+- **JwtAuthenticationEntryPoint**: Unauthorized request handling
+- **JwtAccessDeniedHandler**: Forbidden request handling
+
+### **Security Features:**
+
+- ✅ **JWT Authentication**: Stateless token-based authentication
+- ✅ **Role-Based Authorization**: Multiple roles per user with permission inheritance
+- ✅ **BCrypt Password Encoding**: Secure password hashing
+- ✅ **CORS Configuration**: Flexible cross-origin resource sharing
+- ✅ **Method-Level Security**: @PreAuthorize annotations for fine-grained control
+- ✅ **Error Handling**: Proper 401/403 responses with detailed logging
+
+### **Authorization Rules:**
+
+| Endpoint             | Access Level  | Description              |
+| -------------------- | ------------- | ------------------------ |
+| `/api/auth/**`       | Public        | Authentication endpoints |
+| `/api/health/**`     | Public        | Health check endpoints   |
+| `/api/swagger-ui/**` | Public        | API documentation        |
+| `/api/admin/**`      | ADMIN role    | Administrative functions |
+| `/api/users/**`      | Authenticated | User management          |
+| All others           | Authenticated | Default protection       |
+
+📚 **For detailed security documentation, see:** [`docs/SECURITY-CONFIGURATION.md`](docs/SECURITY-CONFIGURATION.md)
 
 ## 🛠️ Technology Stack
 

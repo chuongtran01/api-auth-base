@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -19,6 +20,13 @@ import java.util.Set;
 @Entity
 @Table(name = "users")
 @EntityListeners(AuditingEntityListener.class)
+@Getter
+@Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Builder
+@ToString(exclude = { "password", "refreshTokens" })
+@EqualsAndHashCode(exclude = { "password", "refreshTokens", "createdAt", "updatedAt", "lastLoginAt" })
 public class User {
 
   @Id
@@ -48,9 +56,11 @@ public class User {
   private String lastName;
 
   @Column(name = "is_enabled", nullable = false)
+  @Builder.Default
   private Boolean isEnabled = true;
 
   @Column(name = "is_email_verified", nullable = false)
+  @Builder.Default
   private Boolean isEmailVerified = false;
 
   @CreatedDate
@@ -67,21 +77,21 @@ public class User {
   // Many-to-Many relationship with Role
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
+  @Builder.Default
   private Set<Role> roles = new HashSet<>();
 
   // One-to-Many relationship with RefreshToken
   @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+  @Builder.Default
   private Set<RefreshToken> refreshTokens = new HashSet<>();
-
-  // Default constructor for JPA
-  protected User() {
-  }
 
   // Constructor for creating users
   public User(String email, String username, String password) {
     this.email = email;
     this.username = username;
     this.password = password;
+    this.roles = new HashSet<>();
+    this.refreshTokens = new HashSet<>();
   }
 
   // Constructor with all fields
@@ -91,114 +101,11 @@ public class User {
     this.password = password;
     this.firstName = firstName;
     this.lastName = lastName;
+    this.roles = new HashSet<>();
+    this.refreshTokens = new HashSet<>();
   }
 
-  // Getters and Setters
-  public Long getId() {
-    return id;
-  }
-
-  public void setId(Long id) {
-    this.id = id;
-  }
-
-  public String getEmail() {
-    return email;
-  }
-
-  public void setEmail(String email) {
-    this.email = email;
-  }
-
-  public String getUsername() {
-    return username;
-  }
-
-  public void setUsername(String username) {
-    this.username = username;
-  }
-
-  public String getPassword() {
-    return password;
-  }
-
-  public void setPassword(String password) {
-    this.password = password;
-  }
-
-  public String getFirstName() {
-    return firstName;
-  }
-
-  public void setFirstName(String firstName) {
-    this.firstName = firstName;
-  }
-
-  public String getLastName() {
-    return lastName;
-  }
-
-  public void setLastName(String lastName) {
-    this.lastName = lastName;
-  }
-
-  public Boolean getIsEnabled() {
-    return isEnabled;
-  }
-
-  public void setIsEnabled(Boolean isEnabled) {
-    this.isEnabled = isEnabled;
-  }
-
-  public Boolean getIsEmailVerified() {
-    return isEmailVerified;
-  }
-
-  public void setIsEmailVerified(Boolean isEmailVerified) {
-    this.isEmailVerified = isEmailVerified;
-  }
-
-  public LocalDateTime getCreatedAt() {
-    return createdAt;
-  }
-
-  public void setCreatedAt(LocalDateTime createdAt) {
-    this.createdAt = createdAt;
-  }
-
-  public LocalDateTime getUpdatedAt() {
-    return updatedAt;
-  }
-
-  public void setUpdatedAt(LocalDateTime updatedAt) {
-    this.updatedAt = updatedAt;
-  }
-
-  public LocalDateTime getLastLoginAt() {
-    return lastLoginAt;
-  }
-
-  public void setLastLoginAt(LocalDateTime lastLoginAt) {
-    this.lastLoginAt = lastLoginAt;
-  }
-
-  public Set<Role> getRoles() {
-    return roles;
-  }
-
-  public void setRoles(Set<Role> roles) {
-    this.roles = roles;
-  }
-
-  public Set<RefreshToken> getRefreshTokens() {
-    return refreshTokens;
-  }
-
-  public void setRefreshTokens(Set<RefreshToken> refreshTokens) {
-    this.refreshTokens = refreshTokens;
-  }
-
-  // Helper methods for managing relationships
+  // Business Logic Methods
   public void addRole(Role role) {
     this.roles.add(role);
     role.getUsers().add(this);
@@ -219,21 +126,21 @@ public class User {
     refreshToken.setUser(null);
   }
 
-  // Business logic methods
+  // Spring Security UserDetails methods
   public boolean isAccountNonExpired() {
-    return true; // Can be extended for account expiration logic
+    return true;
   }
 
   public boolean isAccountNonLocked() {
-    return isEnabled;
+    return true;
   }
 
   public boolean isCredentialsNonExpired() {
-    return true; // Can be extended for password expiration logic
+    return true;
   }
 
   public boolean isEnabled() {
-    return isEnabled;
+    return this.isEnabled;
   }
 
   public String getFullName() {
@@ -246,37 +153,5 @@ public class User {
     } else {
       return username;
     }
-  }
-
-  // equals and hashCode
-  @Override
-  public boolean equals(Object o) {
-    if (this == o)
-      return true;
-    if (o == null || getClass() != o.getClass())
-      return false;
-    User user = (User) o;
-    return email != null ? email.equals(user.email) : user.email == null;
-  }
-
-  @Override
-  public int hashCode() {
-    return email != null ? email.hashCode() : 0;
-  }
-
-  @Override
-  public String toString() {
-    return "User{" +
-        "id=" + id +
-        ", email='" + email + '\'' +
-        ", username='" + username + '\'' +
-        ", firstName='" + firstName + '\'' +
-        ", lastName='" + lastName + '\'' +
-        ", isEnabled=" + isEnabled +
-        ", isEmailVerified=" + isEmailVerified +
-        ", createdAt=" + createdAt +
-        ", updatedAt=" + updatedAt +
-        ", lastLoginAt=" + lastLoginAt +
-        '}';
   }
 }
