@@ -149,9 +149,9 @@ mvn test -Dspring-boot.run.profiles=test
 
 - **API Base URL**: http://localhost:8080/api
 - **Swagger UI**: http://localhost:8080/api/swagger-ui.html
-- **phpMyAdmin**: http://localhost:8081 (when using Docker Compose)
+- **Health Check**: http://localhost:8080/api/health
 
-## 🔧 Configuration
+## �� Configuration
 
 ### Environment Profiles
 
