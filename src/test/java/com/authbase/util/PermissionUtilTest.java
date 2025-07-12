@@ -53,7 +53,7 @@ class PermissionUtilTest {
     adminRole.addPermission(userWrite);
 
     // Create user
-    user = new User("john@company.com", "john", "password");
+    user = new User("john@company.com", "password", "john", null, null);
     user.setFirstName("John");
     user.setLastName("Smith");
   }
