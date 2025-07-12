@@ -86,4 +86,24 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
   @Modifying
   @Query("DELETE FROM RefreshToken rt WHERE rt.expiryDate <= :now")
   void deleteExpiredTokens(@Param("now") LocalDateTime now);
+
+  /**
+   * Delete refresh tokens by expiry date before specified time.
+   * 
+   * @param expiryDate the expiry date threshold
+   * @return number of deleted tokens
+   */
+  @Modifying
+  @Query("DELETE FROM RefreshToken rt WHERE rt.expiryDate < :expiryDate")
+  long deleteByExpiryDateBefore(@Param("expiryDate") LocalDateTime expiryDate);
+
+  /**
+   * Count active refresh tokens for a user.
+   * 
+   * @param userId     the user ID
+   * @param expiryDate the expiry date threshold
+   * @return count of active tokens
+   */
+  @Query("SELECT COUNT(rt) FROM RefreshToken rt WHERE rt.user.id = :userId AND rt.expiryDate > :expiryDate")
+  long countByUserIdAndExpiryDateAfter(@Param("userId") Long userId, @Param("expiryDate") LocalDateTime expiryDate);
 }

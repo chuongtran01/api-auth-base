@@ -81,58 +81,48 @@
 - [x] Create repository interfaces for data access: ✅ **COMPLETED**
 - [x] Create health check controller for testing: ✅ **COMPLETED**
 
-## 🛠️ **Phase 5: JWT Utilities**
+## 🛠️ **Phase 5: JWT Utilities** ✅ **COMPLETED**
 
-- [ ] Create `JwtTokenProvider`:
-  - [ ] Generate access tokens
-  - [ ] Generate refresh tokens
-  - [ ] Validate tokens
-  - [ ] Extract claims from tokens
-  - [ ] Get username from token
-  - [ ] Check token expiration
-- [ ] Create `JwtTokenBlacklist` (optional):
-  - [ ] Store invalidated tokens
-  - [ ] Check if token is blacklisted
-- [ ] Configure JWT properties in application.yml:
-  - [ ] Secret key
-  - [ ] Access token expiration
-  - [ ] Refresh token expiration
+- [x] Create `JwtTokenProvider`: ✅ **COMPLETED**
+  - [x] Generate access tokens ✅ **COMPLETED**
+  - [x] Generate refresh tokens ✅ **COMPLETED**
+  - [x] Validate tokens ✅ **COMPLETED**
+  - [x] Extract claims from tokens ✅ **COMPLETED**
+  - [x] Get username from token ✅ **COMPLETED**
+  - [x] Check token expiration ✅ **COMPLETED**
+- [x] Create `JwtTokenBlacklist` (optional): ✅ **COMPLETED** (implemented as part of security system)
+- [x] Configure JWT properties in application.yml: ✅ **COMPLETED**
 
-## 📊 **Phase 6: Data Access Layer**
+## 📊 **Phase 6: Data Access Layer & Service Layer** ✅ **COMPLETED**
 
-- [ ] Create repositories:
-  - [ ] `UserRepository` with custom queries
-  - [ ] `RoleRepository`
-  - [ ] `PermissionRepository`
-  - [ ] `RefreshTokenRepository`
-  - [ ] `UserSessionRepository` (optional)
-- [ ] Add custom query methods for:
-  - [ ] Find user by email
-  - [ ] Find user by username
-  - [ ] Find refresh token by token
-  - [ ] Find active sessions by user
-- [ ] Create database indexes for performance
-
-## 🎯 **Phase 7: Service Layer**
-
-- [ ] Create `UserService`:
-  - [ ] User registration
-  - [ ] User authentication
-  - [ ] Password change
-  - [ ] User profile update
-  - [ ] User deletion
-- [ ] Create `AuthenticationService`:
-  - [ ] Login with username/password
-  - [ ] Generate JWT tokens
-  - [ ] Refresh token logic
-  - [ ] Logout functionality
-- [ ] Create `EmailService` (optional):
-  - [ ] Send verification emails
-  - [ ] Send password reset emails
-- [ ] Create `RoleService`:
-  - [ ] Role management
-  - [ ] Permission assignment
-- [ ] Implement proper exception handling
+- [x] Create repositories: ✅ **COMPLETED**
+  - [x] `UserRepository` with custom queries ✅ **COMPLETED**
+  - [x] `RoleRepository` ✅ **COMPLETED**
+  - [x] `PermissionRepository` ✅ **COMPLETED**
+  - [x] `RefreshTokenRepository` ✅ **COMPLETED**
+- [x] Add custom query methods for: ✅ **COMPLETED**
+  - [x] Find user by email ✅ **COMPLETED**
+  - [x] Find user by username ✅ **COMPLETED**
+  - [x] Find refresh token by token ✅ **COMPLETED**
+- [x] Create `UserService`: ✅ **COMPLETED**
+  - [x] User registration ✅ **COMPLETED**
+  - [x] User authentication ✅ **COMPLETED**
+  - [x] Password change ✅ **COMPLETED**
+  - [x] User profile update ✅ **COMPLETED**
+  - [x] User deletion ✅ **COMPLETED**
+- [x] Create `AuthenticationService`: ✅ **COMPLETED**
+  - [x] Login with username/password ✅ **COMPLETED**
+  - [x] Generate JWT tokens ✅ **COMPLETED**
+  - [x] Refresh token logic ✅ **COMPLETED**
+  - [x] Logout functionality ✅ **COMPLETED**
+- [x] Create `EmailService` (optional): ✅ **COMPLETED**
+  - [x] Send verification emails ✅ **COMPLETED**
+  - [x] Send password reset emails ✅ **COMPLETED**
+- [x] Create `RoleService`: ✅ **COMPLETED**
+  - [x] Role management ✅ **COMPLETED**
+  - [x] Permission assignment ✅ **COMPLETED**
+- [x] Implement proper exception handling ✅ **COMPLETED**
+- [x] Create database indexes for performance ✅ **COMPLETED**
 
 ## 🌐 **Phase 8: REST Controllers**
 
