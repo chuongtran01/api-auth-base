@@ -48,8 +48,12 @@ public class AuthController {
     log.info("Login attempt for user: {}", request.username());
 
     try {
+      // Extract IP address and user agent for security logging
+      String ipAddress = getClientIpAddress(httpRequest);
+      String userAgent = httpRequest.getHeader("User-Agent");
+
       AuthenticationService.AuthenticationResult result = authenticationService.authenticate(
-          request.username(), request.password());
+          request.username(), request.password(), ipAddress, userAgent);
 
       AuthenticationResponse authResponse = new AuthenticationResponse(
           result.getAccessToken(),
@@ -275,5 +279,31 @@ public class AuthController {
       return bearerToken.substring(7);
     }
     return null;
+  }
+
+  /**
+   * Extract client IP address from the request.
+   * 
+   * @param request HTTP request
+   * @return client IP address
+   */
+  private String getClientIpAddress(HttpServletRequest request) {
+    String ipAddress = request.getHeader("X-Forwarded-For");
+    if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
+      ipAddress = request.getHeader("Proxy-Client-IP");
+    }
+    if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
+      ipAddress = request.getHeader("WL-Proxy-Client-IP");
+    }
+    if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
+      ipAddress = request.getHeader("HTTP_CLIENT_IP");
+    }
+    if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
+      ipAddress = request.getHeader("HTTP_X_FORWARDED_FOR");
+    }
+    if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
+      ipAddress = request.getRemoteAddr();
+    }
+    return ipAddress;
   }
 }

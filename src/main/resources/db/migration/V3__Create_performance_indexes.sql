@@ -20,12 +20,6 @@ CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
 CREATE INDEX idx_refresh_tokens_expiry_date ON refresh_tokens(expiry_date);
 CREATE INDEX idx_refresh_tokens_user_expiry ON refresh_tokens(user_id, expiry_date);
 
--- Indexes for user_sessions table
-CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);
-CREATE INDEX idx_user_sessions_session_id ON user_sessions(session_id);
-CREATE INDEX idx_user_sessions_expires_at ON user_sessions(expires_at);
-CREATE INDEX idx_user_sessions_user_expires ON user_sessions(user_id, expires_at);
-
 -- Indexes for user_roles junction table
 CREATE INDEX idx_user_roles_user_id ON user_roles(user_id);
 CREATE INDEX idx_user_roles_role_id ON user_roles(role_id);

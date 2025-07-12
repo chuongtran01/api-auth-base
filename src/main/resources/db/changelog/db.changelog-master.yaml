@@ -6,8 +6,14 @@ databaseChangeLog:
       file: db/migration/V2__Insert_initial_data.sql
       relativeToChangelogFile: false
   - include:
-      file: db/migration/V3__Create_user_sessions.sql
+      file: db/migration/V3__Create_performance_indexes.sql
       relativeToChangelogFile: false
   - include:
-      file: db/migration/V4__Create_performance_indexes.sql
+      file: db/migration/V4__Make_username_optional.sql
+      relativeToChangelogFile: false
+  - include:
+      file: db/migration/V5__Add_account_lockout_fields.sql
+      relativeToChangelogFile: false
+  - include:
+      file: db/migration/V6__Create_security_events_table.sql
       relativeToChangelogFile: false

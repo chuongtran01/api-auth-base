@@ -54,7 +54,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         // Validate token structure and signature
         if (tokenProvider.validateToken(jwt)) {
-          // Extract all user information from the token (stateless approach)
+          // Extract user information from the token
           String username = tokenProvider.getUsernameFromToken(jwt);
           Long userId = tokenProvider.getUserIdFromToken(jwt);
           String email = tokenProvider.getEmailFromToken(jwt);

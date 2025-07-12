@@ -73,6 +73,17 @@ public class User {
   @Column(name = "last_login_at")
   private LocalDateTime lastLoginAt;
 
+  // Account lockout fields
+  @Column(name = "failed_login_attempts", nullable = false)
+  @Builder.Default
+  private Integer failedLoginAttempts = 0;
+
+  @Column(name = "account_locked_until")
+  private LocalDateTime accountLockedUntil;
+
+  @Column(name = "last_failed_login_at")
+  private LocalDateTime lastFailedLoginAt;
+
   // Many-to-Many relationship with Role
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
@@ -124,13 +135,42 @@ public class User {
     refreshToken.setUser(null);
   }
 
+  // Account lockout methods
+  public void incrementFailedLoginAttempts() {
+    this.failedLoginAttempts++;
+    this.lastFailedLoginAt = LocalDateTime.now();
+  }
+
+  public void resetFailedLoginAttempts() {
+    this.failedLoginAttempts = 0;
+    this.accountLockedUntil = null;
+  }
+
+  public void lockAccount(LocalDateTime lockUntil) {
+    this.accountLockedUntil = lockUntil;
+  }
+
+  public boolean isAccountLocked() {
+    if (accountLockedUntil == null) {
+      return false;
+    }
+    return LocalDateTime.now().isBefore(accountLockedUntil);
+  }
+
+  public boolean isAccountLockedExpired() {
+    if (accountLockedUntil == null) {
+      return true;
+    }
+    return LocalDateTime.now().isAfter(accountLockedUntil);
+  }
+
   // Spring Security UserDetails methods
   public boolean isAccountNonExpired() {
     return true;
   }
 
   public boolean isAccountNonLocked() {
-    return true;
+    return !isAccountLocked();
   }
 
   public boolean isCredentialsNonExpired() {

@@ -1,49 +1,68 @@
-# Redis Integration for Enhanced Logout
+# Redis Integration for JWT Token Blacklisting
 
-## 🎯 **Overview**
+This document describes the Redis integration for JWT token blacklisting in the authentication system.
 
-This document describes the Redis integration for enhanced logout functionality in the JWT authentication system. Redis provides real-time token blacklisting, session management, and improved security for logout operations.
+## Overview
 
-## 🏗️ **Architecture**
+Redis is used to implement secure logout functionality by blacklisting JWT access tokens. When a user logs out, their access token is added to a Redis blacklist with an expiration time matching the token's original expiration.
 
-### **Current State**
+## Architecture
 
-- ✅ Database-based refresh token storage
-- ✅ Stateless JWT authentication
-- ✅ Basic logout functionality
+```
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│   Client    │    │   Spring    │    │    Redis    │
+│             │    │   Boot      │    │             │
+└─────────────┘    └─────────────┘    └─────────────┘
+       │                   │                   │
+       │ 1. Login          │                   │
+       │──────────────────▶│                   │
+       │                   │                   │
+       │ 2. Return JWT     │                   │
+       │◀──────────────────│                   │
+       │                   │                   │
+       │ 3. API Request    │                   │
+       │──────────────────▶│                   │
+       │                   │ 4. Check          │
+       │                   │ blacklist         │
+       │                   │──────────────────▶│
+       │                   │◀──────────────────│
+       │                   │                   │
+       │ 5. Logout         │                   │
+       │──────────────────▶│                   │
+       │                   │ 6. Blacklist      │
+       │                   │ token             │
+       │                   │──────────────────▶│
+       │                   │                   │
+       │ 7. API Request    │                   │
+       │ (with blacklisted │                   │
+       │  token)           │                   │
+       │──────────────────▶│                   │
+       │                   │ 8. Check          │
+       │                   │ blacklist         │
+       │                   │──────────────────▶│
+       │                   │◀──────────────────│
+       │ 9. 401 Unauthorized│                   │
+       │◀──────────────────│                   │
+```
 
-### **With Redis Integration**
+## Dependencies
 
-- ✅ **Access Token Blacklisting** - Immediate token invalidation
-- ✅ **Real-time Session Management** - Live session tracking
-- ✅ **Enhanced Security** - No valid tokens after logout
-- ✅ **Performance** - Faster logout operations
-- ✅ **Scalability** - Support for distributed systems
-
-## 📦 **Dependencies Added**
-
-### **Maven Dependencies**
+Add Redis dependencies to `pom.xml`:
 
 ```xml
-<!-- Redis Dependencies -->
 <dependency>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-data-redis</artifactId>
 </dependency>
 <dependency>
-    <groupId>org.springframework.session</groupId>
-    <artifactId>spring-session-data-redis</artifactId>
+    <groupId>org.springframework.data</groupId>
+    <artifactId>spring-data-redis</artifactId>
 </dependency>
 ```
 
-### **Spring Boot Starters**
+## Configuration
 
-- `spring-boot-starter-data-redis` - Core Redis support
-- `spring-session-data-redis` - Session management with Redis
-
-## ⚙️ **Configuration**
-
-### **Application Properties**
+### Application Properties
 
 ```yaml
 # Redis Configuration
@@ -66,13 +85,6 @@ auth:
   redis:
     enabled: true
     token-blacklist-prefix: "blacklist:"
-    session-prefix: "session:"
-    user-sessions-prefix: "user_sessions:"
-
-  session:
-    max-concurrent-sessions: 5
-    session-timeout: 3600 # seconds
-    cleanup-interval: 300 # seconds
 
   logout:
     blacklist-access-tokens: true
@@ -80,34 +92,28 @@ auth:
     log-events: true
 ```
 
-### **Configuration Properties**
-
-| Property                               | Default          | Description                   |
-| -------------------------------------- | ---------------- | ----------------------------- |
-| `auth.redis.enabled`                   | `false`          | Enable/disable Redis features |
-| `auth.redis.token-blacklist-prefix`    | `blacklist:`     | Prefix for blacklisted tokens |
-| `auth.redis.session-prefix`            | `session:`       | Prefix for session data       |
-| `auth.redis.user-sessions-prefix`      | `user_sessions:` | Prefix for user session sets  |
-| `auth.session.max-concurrent-sessions` | `5`              | Maximum sessions per user     |
-| `auth.session.session-timeout`         | `3600`           | Session timeout in seconds    |
-| `auth.session.cleanup-interval`        | `300`            | Cleanup interval in seconds   |
-
-## 🔧 **Redis Configuration Class**
-
-### **RedisConfig.java**
+### Redis Configuration Class
 
 ```java
 @Configuration
-@EnableRedisHttpSession(maxInactiveIntervalInSeconds = 3600)
+@EnableCaching
 public class RedisConfig {
 
-    @Value("${auth.redis.enabled:false}")
+    @Value("${auth.redis.enabled:true}")
     private boolean redisEnabled;
 
     @Bean
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
-        // Configure Redis template with proper serializers
-        // String keys for performance, JSON values for readability
+        RedisTemplate<String, Object> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
+
+        // Configure serializers
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
+        template.setHashKeySerializer(new StringRedisSerializer());
+        template.setHashValueSerializer(new GenericJackson2JsonRedisSerializer());
+
+        return template;
     }
 
     public boolean isRedisEnabled() {
@@ -116,328 +122,393 @@ public class RedisConfig {
 }
 ```
 
-### **Key Features**
+## Service Layer
 
-- **String Serializers** for keys (better performance)
-- **JSON Serializers** for values (readability and type safety)
-- **Transaction Support** for data consistency
-- **Session Management** with automatic expiration
-
-## 🛠️ **Service Layer**
-
-### **RedisTokenService Interface**
+### RedisTokenService Interface
 
 ```java
 public interface RedisTokenService {
-    // Token blacklisting
+
+    /**
+     * Blacklist a JWT token to prevent its use after logout.
+     */
     void blacklistToken(String token, long expirationTime);
+
+    /**
+     * Check if a JWT token is blacklisted.
+     */
     boolean isTokenBlacklisted(String token);
 
-    // Session management
-    void storeUserSession(String userId, String sessionId, String token, String userAgent, String ipAddress);
-    void removeUserSession(String userId, String sessionId);
-    Set<String> getUserSessions(String userId);
-    long getUserSessionCount(String userId);
-    long removeAllUserSessions(String userId);
-
-    // Cleanup operations
+    /**
+     * Clean up expired tokens from blacklist.
+     */
     long cleanupExpiredTokens();
-    long cleanupExpiredSessions();
 
-    // Health checks
+    /**
+     * Check if Redis is available and enabled.
+     */
     boolean isRedisAvailable();
-    String getSessionInfo(String sessionId);
-    String getUserActivity(String userId);
 }
 ```
 
-### **RedisTokenServiceImpl**
-
-Comprehensive implementation with:
-
-- **Error Handling** - Graceful degradation when Redis is unavailable
-- **Automatic Cleanup** - TTL-based expiration
-- **Session Tracking** - Complete session lifecycle management
-- **Performance Optimization** - Efficient Redis operations
-
-## 🔑 **Redis Key Structure**
-
-### **Token Blacklisting**
-
-```
-blacklist:token:{jwt_token_hash} -> "blacklisted"
-TTL: token_expiration_time + buffer
-```
-
-### **Session Management**
-
-```
-session:{session_id} -> {
-  "userId": "123",
-  "token": "jwt_token",
-  "userAgent": "Mozilla/5.0...",
-  "ipAddress": "192.168.1.1",
-  "createdAt": "2024-01-01T10:00:00",
-  "lastActivity": "2024-01-01T10:30:00"
-}
-TTL: session_timeout
-
-user_sessions:{user_id} -> Set<session_id>
-TTL: session_timeout
-```
-
-### **User Activity**
-
-```
-user_activity:{user_id} -> {
-  "userId": "123",
-  "activeSessions": 2,
-  "sessionIds": ["session1", "session2"],
-  "lastUpdated": "2024-01-01T10:30:00"
-}
-```
-
-## 🚀 **Usage Examples**
-
-### **Token Blacklisting**
+### Implementation
 
 ```java
 @Service
-public class AuthenticationServiceImpl {
+@Slf4j
+@RequiredArgsConstructor
+public class RedisTokenServiceImpl implements RedisTokenService {
+
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final RedisConfig redisConfig;
+
+    @Value("${auth.redis.token-blacklist-prefix:blacklist:}")
+    private String tokenBlacklistPrefix;
 
     @Override
-    public boolean logout(String refreshTokenString) {
-        // 1. Get user and access token
-        // 2. Blacklist access token in Redis
-        redisTokenService.blacklistToken(accessToken, expirationTime);
-        // 3. Remove session
-        // 4. Delete refresh token from database
-    }
-}
-```
-
-### **Session Management**
-
-```java
-@Service
-public class SessionService {
-
-    public void createSession(User user, String token, HttpServletRequest request) {
-        String sessionId = UUID.randomUUID().toString();
-        String userAgent = request.getHeader("User-Agent");
-        String ipAddress = getClientIpAddress(request);
-
-        redisTokenService.storeUserSession(
-            user.getId().toString(),
-            sessionId,
-            token,
-            userAgent,
-            ipAddress
-        );
-    }
-}
-```
-
-### **Token Validation**
-
-```java
-@Component
-public class JwtAuthenticationFilter {
-
-    @Override
-    protected void doFilterInternal(...) {
-        String jwt = getJwtFromRequest(request);
-
-        // Check if token is blacklisted
-        if (redisTokenService.isTokenBlacklisted(jwt)) {
-            // Token is blacklisted, reject request
+    public void blacklistToken(String token, long expirationTime) {
+        if (!redisConfig.isRedisEnabled()) {
+            log.debug("Redis is disabled, skipping token blacklisting");
             return;
         }
 
-        // Proceed with normal JWT validation
+        try {
+            String key = tokenBlacklistPrefix + token;
+            long ttl = calculateTTL(expirationTime);
+
+            redisTemplate.opsForValue().set(key, "blacklisted", ttl, TimeUnit.SECONDS);
+            log.debug("Token blacklisted with TTL: {} seconds", ttl);
+        } catch (Exception e) {
+            log.error("Failed to blacklist token: {}", e.getMessage());
+        }
+    }
+
+    @Override
+    public boolean isTokenBlacklisted(String token) {
+        if (!redisConfig.isRedisEnabled()) {
+            log.debug("Redis is disabled, token not blacklisted");
+            return false;
+        }
+
+        try {
+            String key = tokenBlacklistPrefix + token;
+            Boolean exists = redisTemplate.hasKey(key);
+            return Boolean.TRUE.equals(exists);
+        } catch (Exception e) {
+            log.error("Failed to check token blacklist: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    private long calculateTTL(long expirationTime) {
+        long currentTime = System.currentTimeMillis();
+        long timeUntilExpiration = expirationTime - currentTime;
+        return Math.max(300, timeUntilExpiration / 1000);
     }
 }
 ```
 
-## 🧪 **Testing Configuration**
+## Integration with Authentication
 
-### **Test Properties**
-
-```yaml
-# src/test/resources/application-test.yml
-auth:
-  redis:
-    enabled: false # Disable Redis for testing
-
-  logout:
-    blacklist-access-tokens: false
-    remove-refresh-tokens: true
-```
-
-### **Test Strategy**
-
-- **Unit Tests** - Mock Redis operations
-- **Integration Tests** - Use embedded Redis or disable Redis
-- **Health Checks** - Verify Redis connectivity
-
-## 🔍 **Health Monitoring**
-
-### **Health Endpoints**
-
-```bash
-# Basic health check
-GET /health
-
-# Detailed health with Redis status
-GET /health/detailed
-
-# Redis-specific health check
-GET /health/redis
-```
-
-### **Health Response Examples**
-
-```json
-{
-  "status": "UP",
-  "timestamp": "2024-01-01T10:00:00",
-  "service": "api-auth-base",
-  "version": "0.0.1-SNAPSHOT",
-  "redis": {
-    "status": "UP",
-    "enabled": true
-  },
-  "overallStatus": "UP"
-}
-```
-
-## 🔒 **Security Considerations**
-
-### **Token Security**
-
-- **Token Hashing** - Store token hashes instead of plain tokens
-- **TTL Management** - Automatic cleanup of expired tokens
-- **Access Control** - Secure Redis configuration
-
-### **Session Security**
-
-- **Session Isolation** - Separate sessions per user
-- **Activity Tracking** - Monitor session activity
-- **Force Logout** - Admin ability to terminate sessions
-
-### **Redis Security**
-
-```yaml
-# Production Redis Configuration
-spring:
-  redis:
-    host: redis.example.com
-    port: 6379
-    password: ${REDIS_PASSWORD}
-    ssl: true
-    timeout: 5000ms
-```
-
-## 📊 **Performance Optimization**
-
-### **Redis Operations**
-
-- **Pipelining** - Batch operations for better performance
-- **Connection Pooling** - Efficient connection management
-- **Key Expiration** - Automatic cleanup reduces memory usage
-
-### **Monitoring**
-
-- **Redis Metrics** - Monitor Redis performance
-- **Session Analytics** - Track user session patterns
-- **Cleanup Monitoring** - Monitor automatic cleanup operations
-
-## 🚨 **Error Handling**
-
-### **Graceful Degradation**
+### JWT Filter Integration
 
 ```java
-@Override
-public boolean isTokenBlacklisted(String token) {
-    if (!redisConfig.isRedisEnabled()) {
-        return false; // Fallback to database-only mode
-    }
+@Component
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    try {
-        // Redis operation
-    } catch (Exception e) {
-        log.error("Redis operation failed: {}", e.getMessage());
-        return false; // Fail open for security
+    private final RedisTokenService redisTokenService;
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                  HttpServletResponse response,
+                                  FilterChain filterChain) {
+
+        String jwt = getJwtFromRequest(request);
+
+        if (StringUtils.hasText(jwt)) {
+            // Check if token is blacklisted first
+            if (redisTokenService.isTokenBlacklisted(jwt)) {
+                log.warn("Request with blacklisted token rejected: {}", request.getRequestURI());
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.getWriter().write("Token has been invalidated");
+                return;
+            }
+
+            // Continue with normal JWT validation...
+        }
+
+        filterChain.doFilter(request, response);
     }
 }
 ```
 
-### **Fallback Strategy**
+### Logout Integration
 
-1. **Redis Available** - Use Redis for all operations
-2. **Redis Unavailable** - Fall back to database-only mode
-3. **Partial Failure** - Log errors and continue operation
+```java
+@Service
+public class AuthenticationServiceImpl implements AuthenticationService {
 
-## 🔄 **Migration Strategy**
+    @Override
+    public boolean logout(String refreshTokenString, String accessToken) {
+        log.info("Logging out user with refresh token and blacklisting access token");
 
-### **Phase 1: Setup (Current)**
+        // Blacklist the access token
+        if (accessToken != null && !accessToken.trim().isEmpty()) {
+            try {
+                long expirationTime = jwtTokenProvider.getExpirationDateFromToken(accessToken).getTime();
+                redisTokenService.blacklistToken(accessToken, expirationTime);
+                log.info("Access token blacklisted successfully");
+            } catch (Exception e) {
+                log.warn("Failed to blacklist access token: {}", e.getMessage());
+            }
+        }
 
-- ✅ Add Redis dependencies
-- ✅ Configure Redis connection
-- ✅ Create service layer
-- ✅ Add health monitoring
+        // Delete refresh token from database
+        Optional<RefreshToken> refreshTokenOpt = refreshTokenRepository.findByToken(refreshTokenString);
+        if (refreshTokenOpt.isPresent()) {
+            refreshTokenRepository.delete(refreshTokenOpt.get());
+            log.info("User logged out successfully");
+            return true;
+        }
 
-### **Phase 2: Integration (Next)**
+        return false;
+    }
+}
+```
 
-- [ ] Update AuthenticationService to use Redis
-- [ ] Enhance JWT filter with blacklist checking
-- [ ] Add session management to login/logout
-- [ ] Implement force logout functionality
+## Redis Key Structure
 
-### **Phase 3: Enhancement (Future)**
+### Token Blacklist
 
-- [ ] Add session analytics
-- [ ] Implement session limits
-- [ ] Add admin controls
-- [ ] Performance optimization
+```
+blacklist:{jwt_token} -> "blacklisted"
+```
 
-## 📋 **Next Steps**
+Example:
 
-### **Immediate Actions**
+```
+blacklist:eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... -> "blacklisted"
+```
 
-1. **Review Configuration** - Verify Redis settings
-2. **Test Connectivity** - Ensure Redis is accessible
-3. **Health Checks** - Verify health endpoints work
-4. **Documentation** - Review and update documentation
+## Usage Examples
 
-### **Integration Planning**
+### Basic Logout
 
-1. **Authentication Service** - Plan Redis integration
-2. **JWT Filter** - Plan blacklist checking
-3. **Session Management** - Plan session tracking
-4. **Testing Strategy** - Plan comprehensive testing
+```java
+@PostMapping("/logout")
+public ResponseEntity<?> logout(@RequestBody LogoutRequest request) {
+    boolean success = authenticationService.logout(
+        request.refreshToken(),
+        request.accessToken()
+    );
 
-## 🎯 **Benefits**
+    if (success) {
+        return ResponseEntity.ok(new SuccessResponse("Logout successful"));
+    } else {
+        return ResponseEntity.badRequest().body(new ErrorResponse("Logout failed"));
+    }
+}
+```
 
-### **Security Benefits**
+### Admin Force Logout
 
-- ✅ **Immediate Logout** - Access tokens invalidated instantly
-- ✅ **Session Tracking** - Real-time session monitoring
-- ✅ **Force Logout** - Admin control over user sessions
-- ✅ **Audit Trail** - Comprehensive security logging
+```java
+@PostMapping("/admin/users/{userId}/logout")
+@RequirePermission("ADMIN")
+public ResponseEntity<?> forceLogoutUser(@PathVariable Long userId) {
+    // Delete all refresh tokens for the user
+    refreshTokenRepository.deleteByUserId(userId);
 
-### **Performance Benefits**
+    return ResponseEntity.ok(new SuccessResponse("User logged out from all devices"));
+}
+```
 
-- ✅ **Faster Operations** - Redis-based operations
-- ✅ **Reduced Database Load** - Session data in Redis
-- ✅ **Automatic Cleanup** - TTL-based expiration
-- ✅ **Scalability** - Support for distributed systems
+## Testing
 
-### **Operational Benefits**
+### Test Configuration
 
-- ✅ **Health Monitoring** - Redis status monitoring
-- ✅ **Graceful Degradation** - Fallback to database mode
-- ✅ **Configuration Flexibility** - Feature flags and settings
-- ✅ **Easy Testing** - Disable Redis for testing
+```java
+@TestConfiguration
+public class TestRedisConfig {
 
-This Redis integration provides a solid foundation for enhanced logout functionality while maintaining backward compatibility and graceful degradation.
+    @Bean
+    public RedisTokenService redisTokenService() {
+        return new RedisTokenService() {
+            @Override
+            public void blacklistToken(String token, long expirationTime) {
+                // No-op for tests
+            }
+
+            @Override
+            public boolean isTokenBlacklisted(String token) {
+                return false; // No tokens blacklisted in tests
+            }
+
+            @Override
+            public long cleanupExpiredTokens() {
+                return 0;
+            }
+
+            @Override
+            public boolean isRedisAvailable() {
+                return false;
+            }
+        };
+    }
+}
+```
+
+### Integration Tests
+
+```java
+@SpringBootTest
+@AutoConfigureTestDatabase
+class AuthenticationServiceIntegrationTest {
+
+    @Test
+    void testLogoutWithTokenBlacklisting() {
+        // Given: User logs in and gets tokens
+        AuthenticationResult result = authenticationService.authenticate("user@example.com", "password");
+
+        // When: User logs out
+        boolean logoutSuccess = authenticationService.logout(
+            result.refreshToken(),
+            result.accessToken()
+        );
+
+        // Then: Logout should succeed
+        assertTrue(logoutSuccess);
+
+        // And: Token should be blacklisted
+        assertTrue(redisTokenService.isTokenBlacklisted(result.accessToken()));
+    }
+}
+```
+
+## Health Monitoring
+
+### Redis Health Check
+
+```java
+@Component
+public class RedisHealthIndicator implements HealthIndicator {
+
+    private final RedisTokenService redisTokenService;
+
+    @Override
+    public Health health() {
+        if (redisTokenService.isRedisAvailable()) {
+            return Health.up()
+                .withDetail("service", "Redis Token Blacklisting")
+                .withDetail("status", "Available")
+                .build();
+        } else {
+            return Health.down()
+                .withDetail("service", "Redis Token Blacklisting")
+                .withDetail("status", "Unavailable")
+                .build();
+        }
+    }
+}
+```
+
+## Security Considerations
+
+### Token Expiration
+
+- Blacklisted tokens are automatically removed when they would have expired
+- TTL is calculated based on the original token expiration time
+- Buffer time (5 minutes) is added to ensure cleanup
+
+### Redis Security
+
+- Use Redis authentication in production
+- Configure Redis to bind only to localhost or private network
+- Use SSL/TLS for Redis connections in production
+- Regularly rotate Redis passwords
+
+### Fallback Strategy
+
+- If Redis is unavailable, the system falls back to token-only validation
+- This ensures the application remains functional even if Redis is down
+- Log warnings when Redis operations fail
+
+## Performance Optimization
+
+### Connection Pooling
+
+- Configure appropriate connection pool settings
+- Monitor Redis connection usage
+- Use connection pooling for high-traffic applications
+
+### Key Expiration
+
+- Redis automatically handles key expiration
+- No manual cleanup is required
+- Memory usage is automatically managed
+
+## Error Handling
+
+### Redis Connection Failures
+
+```java
+try {
+    redisTokenService.blacklistToken(token, expirationTime);
+} catch (Exception e) {
+    log.warn("Failed to blacklist token: {}", e.getMessage());
+    // Continue with logout even if blacklisting fails
+}
+```
+
+### Graceful Degradation
+
+- If Redis is unavailable, tokens are not blacklisted
+- Application continues to function with reduced security
+- Alerts should be configured for Redis failures
+
+## Migration Strategy
+
+### From No Redis
+
+1. Add Redis dependencies
+2. Configure Redis connection
+3. Implement RedisTokenService
+4. Update authentication filter
+5. Update logout logic
+6. Test thoroughly
+
+### From Session-Based
+
+1. Remove session storage logic
+2. Keep only blacklisting functionality
+3. Update configuration
+4. Remove session-related endpoints
+5. Update documentation
+
+## Benefits
+
+### Security
+
+- **Immediate Logout**: Tokens are invalidated instantly
+- **No Token Reuse**: Blacklisted tokens cannot be used
+- **Automatic Cleanup**: Expired tokens are automatically removed
+
+### Performance
+
+- **Fast Lookups**: Redis provides O(1) token lookups
+- **Minimal Overhead**: Only one Redis operation per request
+- **Automatic Expiration**: No manual cleanup required
+
+### Scalability
+
+- **Horizontal Scaling**: Redis can be clustered
+- **High Availability**: Redis supports replication
+- **Memory Efficient**: Automatic cleanup of expired tokens
+
+## Next Steps
+
+1. **Production Deployment**: Configure Redis for production environment
+2. **Monitoring**: Set up Redis monitoring and alerting
+3. **Backup Strategy**: Implement Redis backup and recovery
+4. **Performance Tuning**: Optimize Redis configuration for your workload
+5. **Security Hardening**: Implement additional security measures

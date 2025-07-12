@@ -29,6 +29,30 @@ public interface AuthenticationService {
   AuthenticationResult authenticate(String username, String password);
 
   /**
+   * Authenticate user and generate JWT tokens with security event logging.
+   * 
+   * @param username  username or email
+   * @param password  password
+   * @param ipAddress IP address for security logging
+   * @param userAgent user agent for security logging
+   * @return AuthenticationResult containing access and refresh tokens
+   * @throws org.springframework.security.authentication.BadCredentialsException if
+   *                                                                             credentials
+   *                                                                             are
+   *                                                                             invalid
+   * @throws org.springframework.security.authentication.LockedException         if
+   *                                                                             account
+   *                                                                             is
+   *                                                                             locked
+   * @throws org.springframework.security.authentication.DisabledException       if
+   *                                                                             user
+   *                                                                             account
+   *                                                                             is
+   *                                                                             disabled
+   */
+  AuthenticationResult authenticate(String username, String password, String ipAddress, String userAgent);
+
+  /**
    * Refresh access token using refresh token.
    * 
    * @param refreshTokenString refresh token string

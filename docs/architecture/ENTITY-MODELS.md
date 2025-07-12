@@ -1,96 +1,110 @@
-# Entity Models Documentation
+# Entity Models
 
-## 🎯 **Overview**
+This document describes the core entity models used in the authentication system.
 
-This document describes all the JPA entity models used in the authentication system. These entities map to database tables and provide the foundation for user management, role-based access control, and session tracking.
-
-## 📊 **Entity Relationships**
+## Entity Relationships
 
 ```
-User (1) ←→ (N) Role (N) ←→ (N) Permission
+User (1) ←→ (N) Role (M) ←→ (N) Permission
 User (1) ←→ (N) RefreshToken
-User (1) ←→ (N) UserSession (optional)
 ```
 
-## 🏗️ **Entity Models**
+## Core Entities
 
 ### **1. User Entity**
 
-**Purpose**: Core user account entity for authentication and user management.
+**Purpose**: Represents user accounts in the system.
 
 **Table**: `users`
 
 **Key Features**:
 
-- ✅ **Email-based authentication** (email is the unique identifier)
-- ✅ **Optional username** for display purposes
-- ✅ Profile information (first name, last name)
-- ✅ Account status tracking (enabled, email verified)
-- ✅ Timestamp tracking (created, updated, last login)
-- ✅ Many-to-many relationship with roles
-- ✅ One-to-many relationship with refresh tokens
+- Email-based authentication (primary identifier)
+- Optional username support
+- Account lockout functionality
+- Email verification status
+- Multiple roles support
+- Refresh token management
 
-**Fields**:
+**Entity Class**:
 
 ```java
 @Entity
 @Table(name = "users")
 public class User {
-    private Long id;                    // Primary key
-    private String email;               // Unique email address (required)
-    private String username;            // Unique username (optional)
-    private String password;            // Encrypted password
-    private String firstName;           // First name
-    private String lastName;            // Last name
-    private Boolean isEnabled;          // Account enabled status
-    private Boolean isEmailVerified;    // Email verification status
-    private LocalDateTime createdAt;    // Account creation time
-    private LocalDateTime updatedAt;    // Last update time
-    private LocalDateTime lastLoginAt;  // Last login time
-    private Set<Role> roles;            // User roles
-    private Set<RefreshToken> refreshTokens; // Refresh tokens
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Email
+    @NotBlank
+    @Column(name = "email", nullable = false, unique = true)
+    private String email;
+
+    @Column(name = "username", nullable = true, unique = true)
+    private String username;
+
+    @NotBlank
+    @Column(name = "password", nullable = false)
+    private String password;
+
+    @Column(name = "first_name")
+    private String firstName;
+
+    @Column(name = "last_name")
+    private String lastName;
+
+    @Column(name = "is_enabled", nullable = false)
+    @Builder.Default
+    private Boolean isEnabled = true;
+
+    @Column(name = "is_email_verified", nullable = false)
+    @Builder.Default
+    private Boolean isEmailVerified = false;
+
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @LastModifiedDate
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
+
+    // Account lockout fields
+    @Column(name = "failed_login_attempts", nullable = false)
+    @Builder.Default
+    private Integer failedLoginAttempts = 0;
+
+    @Column(name = "account_locked_until")
+    private LocalDateTime accountLockedUntil;
+
+    @Column(name = "last_failed_login_at")
+    private LocalDateTime lastFailedLoginAt;
+
+    // Relationships
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(name = "user_roles")
+    @Builder.Default
+    private Set<Role> roles = new HashSet<>();
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private Set<RefreshToken> refreshTokens = new HashSet<>();
 }
 ```
 
-**Validation**:
+**Business Logic Methods**:
 
-- **Email**: Must be valid format and unique (required)
-- **Username**: Must be 3-100 characters and unique (optional)
-- **Password**: Required
-- **First/Last name**: Max 100 characters each (optional)
-
-**Authentication Strategy**:
-
-- **Primary Identifier**: Email address
-- **Login**: Users authenticate using email and password
-- **Username**: Optional display name for user-friendly identification
-- **Fallback**: If username is not provided, email is used for display purposes
-
-**Business Methods**:
-
-```java
-// Registration with email and password (username optional)
-User user = new User("user@example.com", "password", "optionalUsername", "John", "Doe");
-
-// Registration with email and password only
-User user = new User("user@example.com", "password");
-
-// Get display name (prioritizes: firstName+lastName > firstName > lastName > username > email)
-String displayName = user.getFullName();
-```
-
-**Constructor Examples**:
-
-```java
-// Minimal registration (email + password only)
-User user1 = new User("john@example.com", "password123");
-
-// Full registration with optional username
-User user2 = new User("jane@example.com", "password123", "jane_doe", "Jane", "Doe");
-
-// Registration without username
-User user3 = new User("admin@company.com", "password123", null, "Admin", "User");
-```
+- `addRole(Role role)` - Add role to user
+- `removeRole(Role role)` - Remove role from user
+- `incrementFailedLoginAttempts()` - Track failed login attempts
+- `resetFailedLoginAttempts()` - Reset lockout counter
+- `lockAccount(LocalDateTime lockUntil)` - Lock account
+- `isAccountLocked()` - Check if account is locked
+- `isAccountLockedExpired()` - Check if lockout period expired
 
 ### **2. Role Entity**
 
@@ -100,181 +114,162 @@ User user3 = new User("admin@company.com", "password123", null, "Admin", "User")
 
 **Key Features**:
 
-- ✅ Role name and description
-- ✅ Many-to-many relationship with permissions
-- ✅ Many-to-many relationship with users
-- ✅ Timestamp tracking
+- Role-based access control (RBAC)
+- Multiple permissions per role
+- Hierarchical role structure support
 
-**Fields**:
+**Entity Class**:
 
 ```java
 @Entity
 @Table(name = "roles")
 public class Role {
-    private Long id;                    // Primary key
-    private String name;                // Unique role name
-    private String description;         // Role description
-    private LocalDateTime createdAt;    // Creation time
-    private LocalDateTime updatedAt;    // Last update time
-    private Set<Permission> permissions; // Role permissions
-    private Set<User> users;            // Users with this role
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @NotBlank
+    @Column(name = "name", nullable = false, unique = true)
+    private String name;
+
+    @Column(name = "description")
+    private String description;
+
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @LastModifiedDate
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    // Relationships
+    @ManyToMany(mappedBy = "roles")
+    @Builder.Default
+    private Set<User> users = new HashSet<>();
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(name = "role_permissions")
+    @Builder.Default
+    private Set<Permission> permissions = new HashSet<>();
 }
 ```
 
-**Validation**:
+**Business Logic Methods**:
 
-- Role name is required and unique (max 50 characters)
-- Description max 255 characters
-
-**Helper Methods**:
-
-```java
-public void addPermission(Permission permission)    // Add permission to role
-public void removePermission(Permission permission) // Remove permission from role
-public void addUser(User user)                      // Assign role to user
-public void removeUser(User user)                   // Remove role from user
-```
+- `addPermission(Permission permission)` - Add permission to role
+- `removePermission(Permission permission)` - Remove permission from role
+- `hasPermission(String permissionName)` - Check if role has permission
 
 ### **3. Permission Entity**
 
-**Purpose**: Defines system permissions that can be assigned to roles.
+**Purpose**: Defines granular permissions for fine-grained access control.
 
 **Table**: `permissions`
 
 **Key Features**:
 
-- ✅ Permission name and description
-- ✅ Many-to-many relationship with roles
-- ✅ Timestamp tracking
+- Granular permission system
+- Reusable across multiple roles
+- Permission-based access control
 
-**Fields**:
+**Entity Class**:
 
 ```java
 @Entity
 @Table(name = "permissions")
 public class Permission {
-    private Long id;                    // Primary key
-    private String name;                // Unique permission name
-    private String description;         // Permission description
-    private LocalDateTime createdAt;    // Creation time
-    private LocalDateTime updatedAt;    // Last update time
-    private Set<Role> roles;            // Roles with this permission
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @NotBlank
+    @Column(name = "name", nullable = false, unique = true)
+    private String name;
+
+    @Column(name = "description")
+    private String description;
+
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @LastModifiedDate
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    // Relationships
+    @ManyToMany(mappedBy = "permissions")
+    @Builder.Default
+    private Set<Role> roles = new HashSet<>();
 }
 ```
 
-**Validation**:
+**Business Logic Methods**:
 
-- Permission name is required and unique (max 100 characters)
-- Description max 255 characters
-
-**Helper Methods**:
-
-```java
-public void addRole(Role role)          // Add role to permission
-public void removeRole(Role role)       // Remove role from permission
-```
+- `addRole(Role role)` - Add role to permission
+- `removeRole(Role role)` - Remove role from permission
 
 ### **4. RefreshToken Entity**
 
-**Purpose**: Stores JWT refresh tokens for token renewal without re-authentication.
+**Purpose**: Manages refresh tokens for JWT token renewal.
 
 **Table**: `refresh_tokens`
 
 **Key Features**:
 
-- ✅ Unique token storage
-- ✅ User association
-- ✅ Expiry date tracking
-- ✅ Creation timestamp
+- Secure token storage
+- Automatic expiration
+- User association
+- Token rotation support
 
-**Fields**:
+**Entity Class**:
 
 ```java
 @Entity
 @Table(name = "refresh_tokens")
 public class RefreshToken {
-    private Long id;                    // Primary key
-    private String token;               // Unique refresh token
-    private User user;                  // Associated user
-    private LocalDateTime expiryDate;   // Token expiry time
-    private LocalDateTime createdAt;    // Creation time
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @NotBlank
+    @Column(name = "token", nullable = false, unique = true)
+    private String token;
+
+    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
+    @Column(name = "expiry_date", nullable = false)
+    private LocalDateTime expiryDate;
+
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "last_used_at")
+    private LocalDateTime lastUsedAt;
 }
 ```
 
-**Validation**:
+**Business Logic Methods**:
 
-- Token is required and unique (max 500 characters)
-- User is required
-- Expiry date is required
+- `isExpired()` - Check if token is expired
+- `updateLastUsed()` - Update last used timestamp
+- `extendExpiry(LocalDateTime newExpiry)` - Extend token expiration
 
-**Business Methods**:
+## Relationship Details
 
-```java
-public boolean isExpired()              // Check if token is expired
-public boolean isValid()                // Check if token is valid
-```
+### **User → Role (Many-to-Many)**
 
-### **5. UserSession Entity (Optional)**
-
-**Purpose**: Tracks user sessions for security auditing and session management.
-
-**Table**: `user_sessions`
-
-**Key Features**:
-
-- ✅ Session ID tracking
-- ✅ IP address and user agent logging
-- ✅ Session status (active/inactive)
-- ✅ Activity and expiry tracking
-
-**Fields**:
-
-```java
-@Entity
-@Table(name = "user_sessions")
-public class UserSession {
-    private Long id;                    // Primary key
-    private User user;                  // Associated user
-    private String sessionId;           // Unique session ID
-    private String ipAddress;           // Client IP address
-    private String userAgent;           // Client user agent
-    private Boolean isActive;           // Session active status
-    private LocalDateTime createdAt;    // Session creation time
-    private LocalDateTime lastActivityAt; // Last activity time
-    private LocalDateTime expiresAt;    // Session expiry time
-}
-```
-
-**Validation**:
-
-- Session ID is required and unique (max 255 characters)
-- User is required
-- IP address max 45 characters (IPv6 support)
-- User agent max 500 characters
-
-**Business Methods**:
-
-```java
-public boolean isExpired()              // Check if session is expired
-public boolean isValid()                // Check if session is valid
-public void updateLastActivity()        // Update last activity time
-public void deactivate()                // Deactivate session
-```
-
-## 🔗 **JPA Relationships**
-
-### **Many-to-Many Relationships**
-
-#### **User ↔ Role**
+**Junction Table**: `user_roles`
 
 ```java
 // User side
 @ManyToMany(fetch = FetchType.EAGER)
-@JoinTable(
-    name = "user_roles",
-    joinColumns = @JoinColumn(name = "user_id"),
-    inverseJoinColumns = @JoinColumn(name = "role_id")
-)
+@JoinTable(name = "user_roles")
 private Set<Role> roles = new HashSet<>();
 
 // Role side
@@ -282,16 +277,21 @@ private Set<Role> roles = new HashSet<>();
 private Set<User> users = new HashSet<>();
 ```
 
-#### **Role ↔ Permission**
+**Usage**:
+
+```java
+user.addRole(adminRole);
+user.removeRole(userRole);
+```
+
+### **Role → Permission (Many-to-Many)**
+
+**Junction Table**: `role_permissions`
 
 ```java
 // Role side
 @ManyToMany(fetch = FetchType.EAGER)
-@JoinTable(
-    name = "role_permissions",
-    joinColumns = @JoinColumn(name = "role_id"),
-    inverseJoinColumns = @JoinColumn(name = "permission_id")
-)
+@JoinTable(name = "role_permissions")
 private Set<Permission> permissions = new HashSet<>();
 
 // Permission side
@@ -299,9 +299,14 @@ private Set<Permission> permissions = new HashSet<>();
 private Set<Role> roles = new HashSet<>();
 ```
 
-### **One-to-Many Relationships**
+**Usage**:
 
-#### **User → RefreshToken**
+```java
+adminRole.addPermission(readPermission);
+adminRole.removePermission(writePermission);
+```
+
+### **User → RefreshToken (One-to-Many)**
 
 ```java
 // User side
@@ -314,179 +319,126 @@ private Set<RefreshToken> refreshTokens = new HashSet<>();
 private User user;
 ```
 
-#### **User → UserSession**
+**Usage**:
 
 ```java
-// User side (can be added if needed)
-@OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-private Set<UserSession> sessions = new HashSet<>();
-
-// UserSession side
-@ManyToOne(fetch = FetchType.LAZY)
-@JoinColumn(name = "user_id", nullable = false)
-private User user;
+user.addRefreshToken(refreshToken);
+user.removeRefreshToken(refreshToken);
 ```
 
-## ⏰ **Auditing Support**
+## Database Schema
 
-All entities support automatic timestamp management using Spring Data JPA auditing:
+### **Users Table**
 
-```java
-@CreatedDate
-@Column(name = "created_at", nullable = false, updatable = false)
-private LocalDateTime createdAt;
-
-@LastModifiedDate
-@Column(name = "updated_at", nullable = false)
-private LocalDateTime updatedAt;
+```sql
+CREATE TABLE users (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    username VARCHAR(100) UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    is_email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    last_login_at TIMESTAMP,
+    failed_login_attempts INT NOT NULL DEFAULT 0,
+    account_locked_until TIMESTAMP,
+    last_failed_login_at TIMESTAMP
+);
 ```
 
-**Configuration**:
+### **Roles Table**
 
-```java
-@SpringBootApplication
-@EnableJpaAuditing
-public class ApiAuthBaseApplication {
-    // Application configuration
-}
+```sql
+CREATE TABLE roles (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
 ```
 
-## 🔒 **Security Considerations**
+### **Permissions Table**
 
-### **Password Security**
-
-- Passwords are stored as encrypted hashes (BCrypt)
-- Never expose passwords in logs or responses
-- Use `@JsonIgnore` on password fields in DTOs
-
-### **Token Security**
-
-- Refresh tokens are stored securely in database
-- Tokens have explicit expiry dates
-- Implement token rotation for security
-
-### **Session Security**
-
-- Track IP addresses and user agents
-- Implement session timeout
-- Support session invalidation
-
-## 🧪 **Testing Entities**
-
-### **Unit Testing**
-
-```java
-@Test
-void testUserCreation() {
-    User user = new User("test@example.com", "testuser", "password");
-    user.setFirstName("John");
-    user.setLastName("Doe");
-
-    assertEquals("test@example.com", user.getEmail());
-    assertEquals("John Doe", user.getFullName());
-    assertTrue(user.isEnabled());
-}
-
-@Test
-void testRolePermissionAssignment() {
-    Role adminRole = new Role("ADMIN", "Administrator");
-    Permission userRead = new Permission("USER_READ", "Read user information");
-
-    adminRole.addPermission(userRead);
-
-    assertTrue(adminRole.getPermissions().contains(userRead));
-    assertTrue(userRead.getRoles().contains(adminRole));
-}
+```sql
+CREATE TABLE permissions (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
 ```
 
-### **Integration Testing**
+### **Refresh Tokens Table**
 
-```java
-@SpringBootTest
-@Transactional
-class UserEntityIntegrationTest {
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Test
-    void testUserPersistence() {
-        User user = new User("test@example.com", "testuser", "password");
-        User savedUser = userRepository.save(user);
-
-        assertNotNull(savedUser.getId());
-        assertEquals("test@example.com", savedUser.getEmail());
-    }
-}
+```sql
+CREATE TABLE refresh_tokens (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    token VARCHAR(255) NOT NULL UNIQUE,
+    user_id BIGINT NOT NULL,
+    expiry_date TIMESTAMP NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_used_at TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
 ```
 
-## 📚 **Best Practices**
+### **Junction Tables**
 
-### **1. Entity Design**
+**User Roles**:
 
-- Use meaningful field names
-- Include proper validation annotations
-- Implement proper equals/hashCode methods
+```sql
+CREATE TABLE user_roles (
+    user_id BIGINT NOT NULL,
+    role_id BIGINT NOT NULL,
+    PRIMARY KEY (user_id, role_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
+);
+```
+
+**Role Permissions**:
+
+```sql
+CREATE TABLE role_permissions (
+    role_id BIGINT NOT NULL,
+    permission_id BIGINT NOT NULL,
+    PRIMARY KEY (role_id, permission_id),
+    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
+    FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
+);
+```
+
+## Best Practices
+
+### **Entity Design**
+
+- Use `@Builder` pattern for flexible object creation
+- Implement proper `equals()` and `hashCode()` methods
+- Use `@ToString(exclude = "sensitiveFields")` for security
+- Implement business logic methods in entities
+
+### **Relationship Management**
+
+- Use bidirectional relationships for consistency
+- Implement helper methods for relationship management
 - Use appropriate fetch types (LAZY vs EAGER)
+- Consider cascade operations carefully
 
-### **2. Relationship Management**
+### **Performance Considerations**
 
-- Use helper methods for bidirectional relationships
-- Implement proper cascade operations
-- Consider performance implications of fetch types
+- Use indexes on frequently queried fields
+- Consider pagination for large datasets
+- Use appropriate fetch strategies
+- Monitor N+1 query problems
 
-### **3. Validation**
+### **Security Considerations**
 
-- Use Bean Validation annotations
-- Provide meaningful error messages
-- Validate business rules in entities
-
-### **4. Auditing**
-
-- Enable JPA auditing for timestamp management
-- Use `@CreatedDate` and `@LastModifiedDate`
-- Consider custom auditing for user tracking
-
-## 🎯 **Usage Examples**
-
-### **Creating a User with Roles**
-
-```java
-// Create user
-User user = new User("john@example.com", "john", "password");
-user.setFirstName("John");
-user.setLastName("Doe");
-
-// Create and assign role
-Role userRole = new Role("USER", "Standard user");
-user.addRole(userRole);
-
-// Save to database
-userRepository.save(user);
-```
-
-### **Checking User Permissions**
-
-```java
-public boolean hasPermission(User user, String permissionName) {
-    return user.getRoles().stream()
-        .flatMap(role -> role.getPermissions().stream())
-        .anyMatch(permission -> permission.getName().equals(permissionName));
-}
-```
-
-### **Managing Refresh Tokens**
-
-```java
-public RefreshToken createRefreshToken(User user, String token, Duration validity) {
-    RefreshToken refreshToken = new RefreshToken(
-        token,
-        user,
-        LocalDateTime.now().plus(validity)
-    );
-    user.addRefreshToken(refreshToken);
-    return refreshTokenRepository.save(refreshToken);
-}
-```
-
-This entity model design provides a solid foundation for a comprehensive authentication and authorization system with proper separation of concerns and extensibility.
+- Never expose sensitive fields in toString()
+- Use proper validation annotations
+- Implement proper access control
+- Consider audit trails for sensitive operations

@@ -12,6 +12,14 @@ import java.util.Optional;
 public interface UserService {
 
   /**
+   * Save user entity.
+   * 
+   * @param user user to save
+   * @return saved user
+   */
+  User saveUser(User user);
+
+  /**
    * Register a new user with email and password only.
    * 
    * @param email    user email (required)

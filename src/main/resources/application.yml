@@ -78,13 +78,6 @@ auth:
   redis:
     enabled: true
     token-blacklist-prefix: "blacklist:"
-    session-prefix: "session:"
-    user-sessions-prefix: "user_sessions:"
-    
-  session:
-    max-concurrent-sessions: 5
-    session-timeout: 3600 # seconds
-    cleanup-interval: 300 # seconds
     
   logout:
     blacklist-access-tokens: true

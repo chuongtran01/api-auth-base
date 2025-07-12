@@ -28,6 +28,12 @@ public class UserServiceImpl implements UserService {
   private final PasswordEncoder passwordEncoder;
 
   @Override
+  public User saveUser(User user) {
+    log.debug("Saving user: {}", user.getEmail());
+    return userRepository.save(user);
+  }
+
+  @Override
   public User registerUser(String email, String password) {
     log.info("Registering new user: {}", email);
 
