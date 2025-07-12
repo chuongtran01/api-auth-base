@@ -7,7 +7,10 @@ import com.authbase.dto.RegisterRequest;
 import com.authbase.dto.AuthenticationResponse;
 import com.authbase.dto.SuccessResponse;
 import com.authbase.dto.UserResponse;
-import com.authbase.dto.ErrorResponse;
+import com.authbase.dto.ForgotPasswordRequest;
+import com.authbase.dto.ResetPasswordRequest;
+import com.authbase.dto.VerifyEmailRequest;
+import com.authbase.dto.ApiResponse;
 import com.authbase.service.AuthenticationService;
 import com.authbase.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 
 /**
  * REST Controller for authentication operations.
@@ -33,22 +37,30 @@ public class AuthController {
   /**
    * User login endpoint.
    * 
-   * @param request login request containing username/email and password
+   * @param request     login request containing username/email and password
+   * @param httpRequest HTTP request to get path for response
    * @return authentication result with access and refresh tokens
    */
   @PostMapping("/login")
-  public ResponseEntity<AuthenticationResponse> login(@RequestBody LoginRequest request) {
+  public ResponseEntity<ApiResponse<AuthenticationResponse>> login(
+      @Valid @RequestBody LoginRequest request,
+      HttpServletRequest httpRequest) {
     log.info("Login attempt for user: {}", request.username());
 
     try {
       AuthenticationService.AuthenticationResult result = authenticationService.authenticate(
           request.username(), request.password());
 
-      AuthenticationResponse response = new AuthenticationResponse(
+      AuthenticationResponse authResponse = new AuthenticationResponse(
           result.getAccessToken(),
           result.getRefreshToken(),
           result.getUser(),
           "Login successful");
+
+      ApiResponse<AuthenticationResponse> response = ApiResponse.success(
+          "Login successful",
+          authResponse,
+          httpRequest.getRequestURI());
 
       return ResponseEntity.ok(response);
     } catch (Exception e) {
@@ -60,22 +72,30 @@ public class AuthController {
   /**
    * Refresh access token using refresh token.
    * 
-   * @param request refresh token request
+   * @param request     refresh token request
+   * @param httpRequest HTTP request to get path for response
    * @return new authentication result with new access token
    */
   @PostMapping("/refresh")
-  public ResponseEntity<AuthenticationResponse> refreshToken(@RequestBody RefreshTokenRequest request) {
+  public ResponseEntity<ApiResponse<AuthenticationResponse>> refreshToken(
+      @Valid @RequestBody RefreshTokenRequest request,
+      HttpServletRequest httpRequest) {
     log.debug("Token refresh request");
 
     try {
       AuthenticationService.AuthenticationResult result = authenticationService.refreshToken(
           request.refreshToken());
 
-      AuthenticationResponse response = new AuthenticationResponse(
+      AuthenticationResponse authResponse = new AuthenticationResponse(
           result.getAccessToken(),
           result.getRefreshToken(),
           result.getUser(),
           "Token refreshed successfully");
+
+      ApiResponse<AuthenticationResponse> response = ApiResponse.success(
+          "Token refreshed successfully",
+          authResponse,
+          httpRequest.getRequestURI());
 
       return ResponseEntity.ok(response);
     } catch (Exception e) {
@@ -94,7 +114,9 @@ public class AuthController {
    * @return logout result
    */
   @PostMapping("/logout")
-  public ResponseEntity<SuccessResponse> logout(@RequestBody LogoutRequest request, HttpServletRequest httpRequest) {
+  public ResponseEntity<ApiResponse<Void>> logout(
+      @Valid @RequestBody LogoutRequest request,
+      HttpServletRequest httpRequest) {
     log.info("Logout request");
 
     try {
@@ -104,7 +126,9 @@ public class AuthController {
       boolean success = authenticationService.logout(request.refreshToken(), accessToken);
 
       if (success) {
-        SuccessResponse response = new SuccessResponse("Logout successful", true);
+        ApiResponse<Void> response = ApiResponse.success(
+            "Logout successful",
+            httpRequest.getRequestURI());
         return ResponseEntity.ok(response);
       } else {
         throw new RuntimeException("Invalid refresh token");
@@ -118,21 +142,124 @@ public class AuthController {
   /**
    * User registration endpoint.
    * 
-   * @param request registration request containing email and password
+   * @param request     registration request containing email and password
+   * @param httpRequest HTTP request to get path for response
    * @return registration result
    */
   @PostMapping("/register")
-  public ResponseEntity<UserResponse> register(@RequestBody RegisterRequest request) {
+  public ResponseEntity<ApiResponse<UserResponse>> register(
+      @Valid @RequestBody RegisterRequest request,
+      HttpServletRequest httpRequest) {
     log.info("Registration attempt for email: {}", request.email());
 
     try {
       var user = userService.registerUser(request.email(), request.password());
 
-      UserResponse response = new UserResponse("User registered successfully", user, true);
+      UserResponse userResponse = new UserResponse("User registered successfully", user, true);
+      ApiResponse<UserResponse> response = ApiResponse.success(
+          "User registered successfully",
+          userResponse,
+          httpRequest.getRequestURI());
+
       return ResponseEntity.ok(response);
     } catch (Exception e) {
       log.warn("Registration failed for email: {} - {}", request.email(), e.getMessage());
       throw new RuntimeException("Registration failed: " + e.getMessage());
+    }
+  }
+
+  /**
+   * Forgot password endpoint.
+   * Sends password reset email to the user.
+   * 
+   * @param request     forgot password request containing email
+   * @param httpRequest HTTP request to get path for response
+   * @return success response
+   */
+  @PostMapping("/forgot-password")
+  public ResponseEntity<ApiResponse<Void>> forgotPassword(
+      @Valid @RequestBody ForgotPasswordRequest request,
+      HttpServletRequest httpRequest) {
+    log.info("Password reset request for email: {}", request.email());
+
+    try {
+      boolean success = userService.sendPasswordResetEmail(request.email());
+
+      if (success) {
+        ApiResponse<Void> response = ApiResponse.success(
+            "Password reset email sent successfully",
+            httpRequest.getRequestURI());
+        return ResponseEntity.ok(response);
+      } else {
+        throw new RuntimeException("Failed to send password reset email");
+      }
+    } catch (Exception e) {
+      log.warn("Password reset request failed for email: {} - {}", request.email(), e.getMessage());
+      throw new RuntimeException("Password reset request failed: " + e.getMessage());
+    }
+  }
+
+  /**
+   * Reset password endpoint.
+   * Resets user password using reset token.
+   * 
+   * @param request     reset password request containing token and new password
+   * @param httpRequest HTTP request to get path for response
+   * @return success response
+   */
+  @PostMapping("/reset-password")
+  public ResponseEntity<ApiResponse<Void>> resetPassword(
+      @Valid @RequestBody ResetPasswordRequest request,
+      HttpServletRequest httpRequest) {
+    log.info("Password reset attempt with token");
+
+    try {
+      boolean success = userService.resetPassword(
+          request.token(),
+          request.newPassword());
+
+      if (success) {
+        ApiResponse<Void> response = ApiResponse.success(
+            "Password reset successfully",
+            httpRequest.getRequestURI());
+        return ResponseEntity.ok(response);
+      } else {
+        throw new RuntimeException("Password reset failed");
+      }
+    } catch (Exception e) {
+      log.warn("Password reset failed: {}", e.getMessage());
+      throw new RuntimeException("Password reset failed: " + e.getMessage());
+    }
+  }
+
+  /**
+   * Email verification endpoint.
+   * Verifies user email using verification token.
+   * 
+   * @param request     verify email request containing token
+   * @param httpRequest HTTP request to get path for response
+   * @return success response
+   */
+  @PostMapping("/verify-email")
+  public ResponseEntity<ApiResponse<Void>> verifyEmail(
+      @Valid @RequestBody VerifyEmailRequest request,
+      HttpServletRequest httpRequest) {
+    log.info("Email verification attempt with token");
+
+    try {
+      boolean success = userService.verifyEmail(request.token());
+
+      if (success) {
+        ApiResponse<Void> response = ApiResponse.success(
+            "Email verified successfully",
+            httpRequest.getRequestURI());
+        return ResponseEntity.ok(response);
+      } else {
+        throw new RuntimeException("Email verification failed");
+      }
+    } catch (Exception e) {
+      log.warn("Email verification failed: {}", e.getMessage());
+      throw new RuntimeException("Email verification failed: " + e.getMessage());
     }
   }
 

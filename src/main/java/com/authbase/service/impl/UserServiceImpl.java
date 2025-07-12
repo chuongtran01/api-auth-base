@@ -213,4 +213,40 @@ public class UserServiceImpl implements UserService {
   public long getUserCount() {
     return userRepository.count();
   }
+
+  @Override
+  public boolean sendPasswordResetEmail(String email) {
+    log.info("Sending password reset email to: {}", email);
+
+    User user = userRepository.findByEmail(email)
+        .orElseThrow(() -> new IllegalArgumentException("User not found with email: " + email));
+
+    // TODO: Implement email service integration
+    // For now, just log the action
+    log.info("Password reset email would be sent to: {}", email);
+
+    return true;
+  }
+
+  @Override
+  public boolean resetPassword(String token, String newPassword) {
+    log.info("Resetting password with token");
+
+    // TODO: Implement token validation and password reset logic
+    // For now, just log the action
+    log.info("Password reset with token: {}", token);
+
+    return true;
+  }
+
+  @Override
+  public boolean verifyEmail(String token) {
+    log.info("Verifying email with token");
+
+    // TODO: Implement token validation and email verification logic
+    // For now, just log the action
+    log.info("Email verification with token: {}", token);
+
+    return true;
+  }
 }

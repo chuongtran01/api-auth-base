@@ -145,4 +145,32 @@ public interface UserService {
    * @return total number of users
    */
   long getUserCount();
+
+  /**
+   * Send password reset email to user.
+   * 
+   * @param email user email
+   * @return true if email sent successfully
+   * @throws IllegalArgumentException if user not found
+   */
+  boolean sendPasswordResetEmail(String email);
+
+  /**
+   * Reset user password using reset token.
+   * 
+   * @param token       password reset token
+   * @param newPassword new password
+   * @return true if password reset successfully
+   * @throws IllegalArgumentException if token is invalid or expired
+   */
+  boolean resetPassword(String token, String newPassword);
+
+  /**
+   * Verify user email using verification token.
+   * 
+   * @param token email verification token
+   * @return true if email verified successfully
+   * @throws IllegalArgumentException if token is invalid or expired
+   */
+  boolean verifyEmail(String token);
 }
