@@ -149,36 +149,6 @@ class UserServiceTest {
     private UserServiceImpl userService;
 
     @Test
-    @DisplayName("Should register user with valid data")
-    void registerUser_WithValidData_ShouldCreateUser() {
-        // Given
-        String email = "test@example.com";
-        String username = "testuser";
-        String password = "password";
-        String encodedPassword = "encodedPassword";
-
-        when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
-        when(userRepository.findByUsername(username)).thenReturn(Optional.empty());
-        when(passwordEncoder.encode(password)).thenReturn(encodedPassword);
-        when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
-
-        // When
-        User result = userService.registerUser(email, password, username);
-
-        // Then
-        assertThat(result.getEmail()).isEqualTo(email);
-        assertThat(result.getUsername()).isEqualTo(username);
-        assertThat(result.getPassword()).isEqualTo(encodedPassword);
-        assertThat(result.isEnabled()).isTrue();
-        assertThat(result.isEmailVerified()).isFalse();
-
-        verify(userRepository).findByEmail(email);
-        verify(userRepository).findByUsername(username);
-        verify(passwordEncoder).encode(password);
-        verify(userRepository).save(any(User.class));
-    }
-
-    @Test
     @DisplayName("Should register user with email and password only")
     void registerUser_WithEmailAndPasswordOnly_ShouldCreateUser() {
         // Given
@@ -191,7 +161,7 @@ class UserServiceTest {
         when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
 
         // When
-        User result = userService.registerUser(email, password, null);
+        User result = userService.registerUser(email, password);
 
         // Then
         assertThat(result.getEmail()).isEqualTo(email);
@@ -202,6 +172,40 @@ class UserServiceTest {
 
         verify(userRepository).findByEmail(email);
         verify(userRepository, never()).findByUsername(any());
+        verify(passwordEncoder).encode(password);
+        verify(userRepository).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("Should register user with profile information")
+    void registerUser_WithProfileInfo_ShouldCreateUser() {
+        // Given
+        String email = "test@example.com";
+        String username = "testuser";
+        String password = "password";
+        String firstName = "John";
+        String lastName = "Doe";
+        String encodedPassword = "encodedPassword";
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+        when(userRepository.findByUsername(username)).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(password)).thenReturn(encodedPassword);
+        when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
+
+        // When
+        User result = userService.registerUser(email, password, username, firstName, lastName);
+
+        // Then
+        assertThat(result.getEmail()).isEqualTo(email);
+        assertThat(result.getUsername()).isEqualTo(username);
+        assertThat(result.getFirstName()).isEqualTo(firstName);
+        assertThat(result.getLastName()).isEqualTo(lastName);
+        assertThat(result.getPassword()).isEqualTo(encodedPassword);
+        assertThat(result.isEnabled()).isTrue();
+        assertThat(result.isEmailVerified()).isFalse();
+
+        verify(userRepository).findByEmail(email);
+        verify(userRepository).findByUsername(username);
         verify(passwordEncoder).encode(password);
         verify(userRepository).save(any(User.class));
     }
@@ -219,7 +223,7 @@ class UserServiceTest {
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(existingUser));
 
         // When & Then
-        assertThatThrownBy(() -> userService.registerUser(email, password, null))
+        assertThatThrownBy(() -> userService.registerUser(email, password))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessage("User with email " + email + " already exists");
 
@@ -242,12 +246,100 @@ class UserServiceTest {
         when(userRepository.findByUsername(username)).thenReturn(Optional.of(existingUser));
 
         // When & Then
-        assertThatThrownBy(() -> userService.registerUser(email, password, username))
+        assertThatThrownBy(() -> userService.registerUser(email, password, username, "John", "Doe"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessage("User with username " + username + " already exists");
 
         verify(userRepository).findByEmail(email);
         verify(userRepository).findByUsername(username);
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("Should update user profile with username")
+    void updateProfile_WithUsername_ShouldUpdateUser() {
+        // Given
+        Long userId = 1L;
+        String newUsername = "newusername";
+        String firstName = "John";
+        String lastName = "Doe";
+
+        User existingUser = new User("test@example.com", "password");
+        existingUser.setId(userId);
+        existingUser.setUsername("oldusername");
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(existingUser));
+        when(userRepository.findByUsername(newUsername)).thenReturn(Optional.empty());
+        when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
+
+        // When
+        User result = userService.updateProfile(userId, newUsername, firstName, lastName);
+
+        // Then
+        assertThat(result.getUsername()).isEqualTo(newUsername);
+        assertThat(result.getFirstName()).isEqualTo(firstName);
+        assertThat(result.getLastName()).isEqualTo(lastName);
+
+        verify(userRepository).findById(userId);
+        verify(userRepository).findByUsername(newUsername);
+        verify(userRepository).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("Should update user profile without changing username")
+    void updateProfile_WithoutUsernameChange_ShouldUpdateUser() {
+        // Given
+        Long userId = 1L;
+        String existingUsername = "existinguser";
+        String firstName = "John";
+        String lastName = "Doe";
+
+        User existingUser = new User("test@example.com", "password");
+        existingUser.setId(userId);
+        existingUser.setUsername(existingUsername);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(existingUser));
+        when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
+
+        // When
+        User result = userService.updateProfile(userId, existingUsername, firstName, lastName);
+
+        // Then
+        assertThat(result.getUsername()).isEqualTo(existingUsername);
+        assertThat(result.getFirstName()).isEqualTo(firstName);
+        assertThat(result.getLastName()).isEqualTo(lastName);
+
+        verify(userRepository).findById(userId);
+        verify(userRepository, never()).findByUsername(any());
+        verify(userRepository).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("Should throw exception when username is already taken")
+    void updateProfile_WithTakenUsername_ShouldThrowException() {
+        // Given
+        Long userId = 1L;
+        String newUsername = "takenusername";
+        String firstName = "John";
+        String lastName = "Doe";
+
+        User existingUser = new User("test@example.com", "password");
+        existingUser.setId(userId);
+        existingUser.setUsername("oldusername");
+
+        User userWithTakenUsername = new User("other@example.com", "password");
+        userWithTakenUsername.setUsername(newUsername);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(existingUser));
+        when(userRepository.findByUsername(newUsername)).thenReturn(Optional.of(userWithTakenUsername));
+
+        // When & Then
+        assertThatThrownBy(() -> userService.updateProfile(userId, newUsername, firstName, lastName))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("Username " + newUsername + " is already taken");
+
+        verify(userRepository).findById(userId);
+        verify(userRepository).findByUsername(newUsername);
         verify(userRepository, never()).save(any(User.class));
     }
 }
@@ -287,7 +379,10 @@ class UserRepositoryTest {
     @DisplayName("Should find user by email")
     void findByEmail_WithExistingEmail_ShouldReturnUser() {
         // Given
-        User user = new User("test@example.com", "password", "testuser", "John", "Doe");
+        User user = new User("test@example.com", "password");
+        user.setUsername("testuser");
+        user.setFirstName("John");
+        user.setLastName("Doe");
         entityManager.persistAndFlush(user);
 
         // When
@@ -312,7 +407,10 @@ class UserRepositoryTest {
     @DisplayName("Should find user by username when provided")
     void findByUsername_WithExistingUsername_ShouldReturnUser() {
         // Given
-        User user = new User("test@example.com", "password", "testuser", "John", "Doe");
+        User user = new User("test@example.com", "password");
+        user.setUsername("testuser");
+        user.setFirstName("John");
+        user.setLastName("Doe");
         entityManager.persistAndFlush(user);
 
         // When

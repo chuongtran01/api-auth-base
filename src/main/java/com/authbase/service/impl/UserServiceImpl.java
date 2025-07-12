@@ -28,8 +28,28 @@ public class UserServiceImpl implements UserService {
   private final PasswordEncoder passwordEncoder;
 
   @Override
-  public User registerUser(String email, String password, String username, String firstName, String lastName) {
+  public User registerUser(String email, String password) {
     log.info("Registering new user: {}", email);
+
+    // Check if user already exists by email
+    if (userRepository.findByEmail(email).isPresent()) {
+      throw new IllegalArgumentException("User with email " + email + " already exists");
+    }
+
+    // Create new user with email and password only
+    User user = new User(email, passwordEncoder.encode(password));
+    user.setIsEnabled(true);
+    user.setIsEmailVerified(false);
+
+    User savedUser = userRepository.save(user);
+    log.info("User registered successfully: {}", savedUser.getEmail());
+
+    return savedUser;
+  }
+
+  @Override
+  public User registerUser(String email, String password, String username, String firstName, String lastName) {
+    log.info("Registering new user with profile: {}", email);
 
     // Check if user already exists by email
     if (userRepository.findByEmail(email).isPresent()) {
@@ -41,7 +61,7 @@ public class UserServiceImpl implements UserService {
       throw new IllegalArgumentException("User with username " + username + " already exists");
     }
 
-    // Create new user
+    // Create new user with all profile information
     User user = new User(email, passwordEncoder.encode(password), username, firstName, lastName);
     user.setIsEnabled(true);
     user.setIsEmailVerified(false);
@@ -50,11 +70,6 @@ public class UserServiceImpl implements UserService {
     log.info("User registered successfully: {}", savedUser.getEmail());
 
     return savedUser;
-  }
-
-  @Override
-  public User registerUser(String email, String password, String username) {
-    return registerUser(email, password, username, null, null);
   }
 
   @Override
@@ -86,11 +101,19 @@ public class UserServiceImpl implements UserService {
   }
 
   @Override
-  public User updateProfile(Long userId, String firstName, String lastName) {
+  public User updateProfile(Long userId, String username, String firstName, String lastName) {
     log.info("Updating profile for user ID: {}", userId);
 
     User user = userRepository.findById(userId)
         .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + userId));
+
+    // If username is being updated, check uniqueness
+    if (username != null && !username.isBlank() && !username.equals(user.getUsername())) {
+      if (userRepository.findByUsername(username).isPresent()) {
+        throw new IllegalArgumentException("Username " + username + " is already taken");
+      }
+      user.setUsername(username);
+    }
 
     user.setFirstName(firstName);
     user.setLastName(lastName);

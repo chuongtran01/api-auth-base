@@ -12,7 +12,17 @@ import java.util.Optional;
 public interface UserService {
 
   /**
-   * Register a new user.
+   * Register a new user with email and password only.
+   * 
+   * @param email    user email (required)
+   * @param password plain text password (required)
+   * @return created user
+   * @throws IllegalArgumentException if user already exists
+   */
+  User registerUser(String email, String password);
+
+  /**
+   * Register a new user with additional profile information.
    * 
    * @param email     user email (required)
    * @param password  plain text password (required)
@@ -23,16 +33,6 @@ public interface UserService {
    * @throws IllegalArgumentException if user already exists
    */
   User registerUser(String email, String password, String username, String firstName, String lastName);
-
-  /**
-   * Register a new user with minimal information.
-   * 
-   * @param email    user email (required)
-   * @param password plain text password (required)
-   * @param username username (optional)
-   * @return created user
-   */
-  User registerUser(String email, String password, String username);
 
   /**
    * Find user by username.
@@ -69,12 +69,13 @@ public interface UserService {
    * Update user profile information.
    * 
    * @param userId    user ID
+   * @param username  new username (optional)
    * @param firstName new first name
    * @param lastName  new last name
    * @return updated user
-   * @throws IllegalArgumentException if user not found
+   * @throws IllegalArgumentException if user not found or username already taken
    */
-  User updateProfile(Long userId, String firstName, String lastName);
+  User updateProfile(Long userId, String username, String firstName, String lastName);
 
   /**
    * Change user password.

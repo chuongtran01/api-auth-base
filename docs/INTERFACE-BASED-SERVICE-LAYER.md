@@ -54,13 +54,13 @@ src/main/java/com/authbase/service/
 
 ```java
 public interface UserService {
+    User registerUser(String email, String password);
     User registerUser(String email, String password, String username, String firstName, String lastName);
-    User registerUser(String email, String password, String username);
     Optional<User> findByUsername(String username);
     Optional<User> findByEmail(String email);
     Optional<User> findById(Long id);
     List<User> findAllUsers();
-    User updateProfile(Long userId, String firstName, String lastName);
+    User updateProfile(Long userId, String username, String firstName, String lastName);
     boolean changePassword(Long userId, String currentPassword, String newPassword);
     User updateEmailVerificationStatus(Long userId, boolean isVerified);
     User updateAccountStatus(Long userId, boolean enabled);
@@ -74,8 +74,9 @@ public interface UserService {
 
 **Key Changes**:
 
-- **Email-first registration**: Email and password are required, username is optional
-- **Authentication**: Uses email as the unique identifier
+- **Simplified registration**: Primary method only requires email and password
+- **Optional profile**: Additional method for username and profile information
+- **Email-first authentication**: Uses email as the unique identifier
 - **Username**: Optional field for display purposes only
 
 ### 2. AuthenticationService Interface
