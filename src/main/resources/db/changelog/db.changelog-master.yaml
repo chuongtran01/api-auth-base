@@ -1,0 +1,10 @@
+databaseChangeLog:
+  - include:
+      file: db/migration/V1__Create_initial_schema.sql
+      relativeToChangelogFile: false
+  - include:
+      file: db/migration/V2__Insert_initial_data.sql
+      relativeToChangelogFile: false
+  - include:
+      file: db/migration/V3__Create_user_sessions.sql
+      relativeToChangelogFile: false

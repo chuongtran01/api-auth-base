@@ -1,0 +1,3 @@
+-- This file is intentionally empty
+-- Data initialization will be added once entity classes are created
+-- For now, this prevents Spring Boot from trying to execute an empty script 
