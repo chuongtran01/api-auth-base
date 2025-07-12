@@ -1,6 +1,5 @@
 package com.authbase.security;
 
-import com.authbase.entity.User;
 import com.authbase.service.RedisTokenService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -158,7 +157,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     return path.startsWith("/api/auth/") ||
         path.startsWith("/api/swagger-ui") ||
         path.startsWith("/api/api-docs") ||
+        path.startsWith("/api-docs") ||
         path.equals("/api/swagger-ui.html") ||
-        path.equals("/api/api-docs");
+        path.equals("/api/api-docs") ||
+        path.equals("/swagger-ui.html") ||
+        path.equals("/api-docs") ||
+        path.startsWith("/api/health/");
   }
 }

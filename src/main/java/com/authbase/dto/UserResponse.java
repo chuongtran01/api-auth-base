@@ -1,9 +1,11 @@
 package com.authbase.dto;
 
-import com.authbase.entity.User;
-
+/**
+ * Response DTO for user-related operations.
+ * Contains user information, message, and success status.
+ */
 public record UserResponse(
-    String message,
-    User user,
-    boolean success) {
+        String message,
+        UserDto user,
+        boolean success) {
 }

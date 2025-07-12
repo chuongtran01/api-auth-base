@@ -43,7 +43,13 @@ public class UserServiceImpl implements UserService {
     }
 
     // Create new user with email and password only
-    User user = new User(email, passwordEncoder.encode(password));
+    User user = User.builder()
+        .email(email)
+        .password(passwordEncoder.encode(password))
+        .isEnabled(true)
+        .isEmailVerified(false)
+        .build();
+
     user.setIsEnabled(true);
     user.setIsEmailVerified(false);
 

@@ -40,18 +40,53 @@ public class JwtTokenProvider {
    * @return JWT access token
    */
   public String generateAccessToken(Authentication authentication) {
-    User user = (User) authentication.getPrincipal();
+    String username = authentication.getName();
+    String email = username; // For UserDetails, username is typically the email
 
-    Date now = new Date();
-    Date expiryDate = new Date(now.getTime() + accessTokenExpiration);
-
-    // Get user roles as comma-separated string
+    // Extract user ID and roles from authorities
+    Long userId = null;
     String roles = authentication.getAuthorities().stream()
         .map(GrantedAuthority::getAuthority)
         .collect(Collectors.joining(","));
 
+    // Try to get additional user info if it's our custom User entity
+    if (authentication.getPrincipal() instanceof com.authbase.entity.User) {
+      com.authbase.entity.User user = (com.authbase.entity.User) authentication.getPrincipal();
+      userId = user.getId();
+      email = user.getEmail();
+    }
+
+    Date now = new Date();
+    Date expiryDate = new Date(now.getTime() + accessTokenExpiration);
+
     return Jwts.builder()
-        .subject(user.getUsername())
+        .subject(username)
+        .claim("userId", userId)
+        .claim("email", email)
+        .claim("roles", roles)
+        .issuedAt(now)
+        .expiration(expiryDate)
+        .signWith(getSigningKey(), Jwts.SIG.HS512)
+        .compact();
+  }
+
+  /**
+   * Generate access token for user entity.
+   * 
+   * @param user the user entity
+   * @return JWT access token
+   */
+  public String generateAccessToken(com.authbase.entity.User user) {
+    Date now = new Date();
+    Date expiryDate = new Date(now.getTime() + accessTokenExpiration);
+
+    // Get user roles as comma-separated string
+    String roles = user.getRoles().stream()
+        .map(role -> "ROLE_" + role.getName())
+        .collect(Collectors.joining(","));
+
+    return Jwts.builder()
+        .subject(user.getEmail())
         .claim("userId", user.getId())
         .claim("email", user.getEmail())
         .claim("roles", roles)

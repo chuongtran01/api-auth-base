@@ -9,6 +9,7 @@ import com.authbase.dto.RoleUpdateRequest;
 import com.authbase.dto.ApiResponse;
 import com.authbase.entity.User;
 import com.authbase.entity.Role;
+import com.authbase.mapper.UserMapper;
 import com.authbase.service.UserService;
 import com.authbase.service.RoleService;
 import com.authbase.security.annotation.RequirePermission;
@@ -29,7 +30,7 @@ import java.util.List;
  * All endpoints require specific permissions for access.
  */
 @RestController
-@RequestMapping("/admin")
+@RequestMapping("/api/admin")
 @Slf4j
 @RequiredArgsConstructor
 public class AdminController {
@@ -37,6 +38,8 @@ public class AdminController {
   private final UserService userService;
   private final RoleService roleService;
   private final PermissionEvaluatorService permissionEvaluatorService;
+
+  private final UserMapper userMapper;
 
   // ============================================================================
   // USER MANAGEMENT ENDPOINTS
@@ -80,7 +83,7 @@ public class AdminController {
       User user = userService.findById(userId)
           .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
 
-      UserResponse userResponse = new UserResponse("User retrieved successfully", user, true);
+      UserResponse userResponse = new UserResponse("User retrieved successfully", userMapper.toDto(user), true);
       ApiResponse<UserResponse> response = ApiResponse.success(
           "User retrieved successfully",
           userResponse,
@@ -115,7 +118,7 @@ public class AdminController {
 
       UserResponse userResponse = new UserResponse(
           "User status updated successfully",
-          updatedUser,
+          userMapper.toDto(updatedUser),
           true);
       ApiResponse<UserResponse> response = ApiResponse.success(
           "User status updated successfully",

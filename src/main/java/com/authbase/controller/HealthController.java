@@ -17,7 +17,7 @@ import java.util.Map;
  * Provides endpoints to check the health of various components including Redis.
  */
 @RestController
-@RequestMapping("/health")
+@RequestMapping("/api/health")
 @Slf4j
 @RequiredArgsConstructor
 public class HealthController {

@@ -6,6 +6,7 @@ import com.authbase.dto.ProfileUpdateRequest;
 import com.authbase.dto.PasswordChangeRequest;
 import com.authbase.dto.ApiResponse;
 import com.authbase.entity.User;
+import com.authbase.mapper.UserMapper;
 import com.authbase.service.UserService;
 import com.authbase.security.annotation.RequirePermission;
 import lombok.RequiredArgsConstructor;
@@ -23,12 +24,13 @@ import jakarta.validation.Valid;
  * deletion.
  */
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/api/users")
 @Slf4j
 @RequiredArgsConstructor
 public class UserController {
 
   private final UserService userService;
+  private final UserMapper userMapper;
 
   /**
    * Get current user's profile.
@@ -41,10 +43,20 @@ public class UserController {
   public ResponseEntity<ApiResponse<UserResponse>> getProfile(
       Authentication authentication,
       HttpServletRequest httpRequest) {
-    User user = (User) authentication.getPrincipal();
+    // Get user from authentication - handle both UserDetails and User entities
+    User user;
+    if (authentication.getPrincipal() instanceof User) {
+      user = (User) authentication.getPrincipal();
+    } else {
+      // If it's UserDetails, we need to get the user from the service
+      String email = authentication.getName();
+      user = userService.findByEmail(email)
+          .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
     log.debug("Getting profile for user: {}", user.getEmail());
 
-    UserResponse userResponse = new UserResponse("Profile retrieved successfully", user, true);
+    UserResponse userResponse = new UserResponse("Profile retrieved successfully", userMapper.toDto(user), true);
     ApiResponse<UserResponse> response = ApiResponse.success(
         "Profile retrieved successfully",
         userResponse,
@@ -67,7 +79,17 @@ public class UserController {
       @Valid @RequestBody ProfileUpdateRequest request,
       HttpServletRequest httpRequest) {
 
-    User user = (User) authentication.getPrincipal();
+    // Get user from authentication - handle both UserDetails and User entities
+    User user;
+    if (authentication.getPrincipal() instanceof User) {
+      user = (User) authentication.getPrincipal();
+    } else {
+      // If it's UserDetails, we need to get the user from the service
+      String email = authentication.getName();
+      user = userService.findByEmail(email)
+          .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
     log.info("Updating profile for user: {}", user.getEmail());
 
     try {
@@ -77,7 +99,7 @@ public class UserController {
           request.firstName(),
           request.lastName());
 
-      UserResponse userResponse = new UserResponse("Profile updated successfully", updatedUser, true);
+      UserResponse userResponse = new UserResponse("Profile updated successfully", userMapper.toDto(updatedUser), true);
       ApiResponse<UserResponse> response = ApiResponse.success(
           "Profile updated successfully",
           userResponse,
@@ -104,7 +126,17 @@ public class UserController {
       @Valid @RequestBody PasswordChangeRequest request,
       HttpServletRequest httpRequest) {
 
-    User user = (User) authentication.getPrincipal();
+    // Get user from authentication - handle both UserDetails and User entities
+    User user;
+    if (authentication.getPrincipal() instanceof User) {
+      user = (User) authentication.getPrincipal();
+    } else {
+      // If it's UserDetails, we need to get the user from the service
+      String email = authentication.getName();
+      user = userService.findByEmail(email)
+          .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
     log.info("Changing password for user: {}", user.getEmail());
 
     try {
@@ -140,7 +172,17 @@ public class UserController {
   public ResponseEntity<ApiResponse<Void>> deleteAccount(
       Authentication authentication,
       HttpServletRequest httpRequest) {
-    User user = (User) authentication.getPrincipal();
+    // Get user from authentication - handle both UserDetails and User entities
+    User user;
+    if (authentication.getPrincipal() instanceof User) {
+      user = (User) authentication.getPrincipal();
+    } else {
+      // If it's UserDetails, we need to get the user from the service
+      String email = authentication.getName();
+      user = userService.findByEmail(email)
+          .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
     log.info("Deleting account for user: {}", user.getEmail());
 
     try {

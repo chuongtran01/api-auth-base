@@ -105,7 +105,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
       securityEventService.logLoginAttempt(user, ipAddress, userAgent, true, "Login successful");
 
       // Generate tokens
-      String accessToken = jwtTokenProvider.generateAccessToken(authentication);
+      String accessToken = jwtTokenProvider.generateAccessToken(user);
       String refreshToken = generateRefreshToken(user);
 
       log.info("User authenticated successfully: {}", user.getEmail());
@@ -189,8 +189,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
 
     // Generate new access token
-    String newAccessToken = jwtTokenProvider.generateAccessToken(
-        new UsernamePasswordAuthenticationToken(user, null, createAuthorities(user)));
+    String newAccessToken = jwtTokenProvider.generateAccessToken(user);
 
     log.info("Token refreshed successfully for user: {}", user.getEmail());
 

@@ -20,12 +20,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.header.HeaderWriter;
-import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * Spring Security Configuration for JWT-based authentication and authorization.
@@ -40,18 +35,48 @@ public class SecurityConfig {
   private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
   private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
   private final UserDetailsService userDetailsService;
-  private final CorsProperties corsProperties;
+  private final CorsConfigurationSource corsConfigurationSource;
+  private final HeaderWriter securityHeadersWriter;
+  private final HeaderWriter frameOptionsHeaderWriter;
+  private final HeaderWriter xssProtectionHeaderWriter;
+  private final HeaderWriter referrerPolicyHeaderWriter;
+  private final HeaderWriter contentSecurityPolicyHeaderWriter;
+  private final HeaderWriter permissionsPolicyHeaderWriter;
+  private final HeaderWriter hstsHeaderWriter;
+  private final HeaderWriter cacheControlHeaderWriter;
+  private final HeaderWriter pragmaHeaderWriter;
+  private final HeaderWriter expiresHeaderWriter;
 
   public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
       JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
       JwtAccessDeniedHandler jwtAccessDeniedHandler,
       UserDetailsService userDetailsService,
-      CorsProperties corsProperties) {
+      CorsConfigurationSource corsConfigurationSource,
+      HeaderWriter securityHeadersWriter,
+      HeaderWriter frameOptionsHeaderWriter,
+      HeaderWriter xssProtectionHeaderWriter,
+      HeaderWriter referrerPolicyHeaderWriter,
+      HeaderWriter contentSecurityPolicyHeaderWriter,
+      HeaderWriter permissionsPolicyHeaderWriter,
+      HeaderWriter hstsHeaderWriter,
+      HeaderWriter cacheControlHeaderWriter,
+      HeaderWriter pragmaHeaderWriter,
+      HeaderWriter expiresHeaderWriter) {
     this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
     this.jwtAccessDeniedHandler = jwtAccessDeniedHandler;
     this.userDetailsService = userDetailsService;
-    this.corsProperties = corsProperties;
+    this.corsConfigurationSource = corsConfigurationSource;
+    this.securityHeadersWriter = securityHeadersWriter;
+    this.frameOptionsHeaderWriter = frameOptionsHeaderWriter;
+    this.xssProtectionHeaderWriter = xssProtectionHeaderWriter;
+    this.referrerPolicyHeaderWriter = referrerPolicyHeaderWriter;
+    this.contentSecurityPolicyHeaderWriter = contentSecurityPolicyHeaderWriter;
+    this.permissionsPolicyHeaderWriter = permissionsPolicyHeaderWriter;
+    this.hstsHeaderWriter = hstsHeaderWriter;
+    this.cacheControlHeaderWriter = cacheControlHeaderWriter;
+    this.pragmaHeaderWriter = pragmaHeaderWriter;
+    this.expiresHeaderWriter = expiresHeaderWriter;
   }
 
   /**
@@ -67,31 +92,34 @@ public class SecurityConfig {
         // Disable CSRF for JWT-based authentication
         .csrf(AbstractHttpConfigurer::disable)
 
-        // Configure CORS
-        .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+        // Configure CORS (uses the bean from CorsConfig)
+        .cors(cors -> cors.configurationSource(corsConfigurationSource))
 
         // Configure session management (stateless for JWT)
         .sessionManagement(session -> session
             .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-        // Configure security headers
+        // Configure security headers (uses beans from SecurityHeadersConfig)
         .headers(headers -> headers
-            .addHeaderWriter(securityHeadersWriter())
-            .addHeaderWriter(frameOptionsHeaderWriter())
-            .addHeaderWriter(xssProtectionHeaderWriter())
-            .addHeaderWriter(referrerPolicyHeaderWriter())
-            .addHeaderWriter(contentSecurityPolicyHeaderWriter())
-            .addHeaderWriter(permissionsPolicyHeaderWriter())
-            .addHeaderWriter(hstsHeaderWriter())
-            .addHeaderWriter(cacheControlHeaderWriter())
-            .addHeaderWriter(pragmaHeaderWriter())
-            .addHeaderWriter(expiresHeaderWriter()))
+            .addHeaderWriter(securityHeadersWriter)
+            .addHeaderWriter(frameOptionsHeaderWriter)
+            .addHeaderWriter(xssProtectionHeaderWriter)
+            .addHeaderWriter(referrerPolicyHeaderWriter)
+            .addHeaderWriter(contentSecurityPolicyHeaderWriter)
+            .addHeaderWriter(permissionsPolicyHeaderWriter)
+            .addHeaderWriter(hstsHeaderWriter)
+            .addHeaderWriter(cacheControlHeaderWriter)
+            .addHeaderWriter(pragmaHeaderWriter)
+            .addHeaderWriter(expiresHeaderWriter))
 
         // Configure authorization rules
         .authorizeHttpRequests(authz -> authz
             // Public endpoints
             .requestMatchers("/api/auth/**").permitAll()
-            .requestMatchers("/api/swagger-ui/**", "/api/api-docs/**", "/api/swagger-ui.html").permitAll()
+            .requestMatchers("/api/swagger-ui.html", "/api/api-docs/**", "/api/api-docs",
+                "/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/api-docs", "/health/**",
+                "/actuator/**")
+            .permitAll()
             .requestMatchers("/api/health/**").permitAll()
 
             // Admin endpoints
@@ -151,115 +179,5 @@ public class SecurityConfig {
   @Bean
   public PasswordEncoder passwordEncoder() {
     return new BCryptPasswordEncoder();
-  }
-
-  /**
-   * Configure CORS settings.
-   * 
-   * @return CorsConfigurationSource
-   */
-  @Bean
-  public CorsConfigurationSource corsConfigurationSource() {
-    CorsConfiguration configuration = new CorsConfiguration();
-
-    // Set allowed origins
-    configuration.setAllowedOriginPatterns(corsProperties.getAllowedOriginPatterns());
-
-    // Set allowed methods
-    configuration.setAllowedMethods(corsProperties.getAllowedMethods());
-
-    // Set allowed headers
-    configuration.setAllowedHeaders(corsProperties.getAllowedHeaders());
-
-    // Set exposed headers
-    configuration.setExposedHeaders(corsProperties.getExposedHeaders());
-
-    // Set allow credentials
-    configuration.setAllowCredentials(corsProperties.isAllowCredentials());
-
-    // Set max age
-    configuration.setMaxAge(corsProperties.getMaxAge());
-
-    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-    source.registerCorsConfiguration("/**", configuration);
-
-    return source;
-  }
-
-  // Security Headers Configuration
-  @Bean
-  public HeaderWriter securityHeadersWriter() {
-    return new org.springframework.security.web.header.writers.StaticHeadersWriter("X-Content-Type-Options", "nosniff");
-  }
-
-  @Bean
-  public HeaderWriter frameOptionsHeaderWriter() {
-    return new org.springframework.security.web.header.writers.StaticHeadersWriter("X-Frame-Options", "DENY");
-  }
-
-  @Bean
-  public HeaderWriter xssProtectionHeaderWriter() {
-    return new org.springframework.security.web.header.writers.StaticHeadersWriter("X-XSS-Protection", "1; mode=block");
-  }
-
-  @Bean
-  public HeaderWriter referrerPolicyHeaderWriter() {
-    return new org.springframework.security.web.header.writers.StaticHeadersWriter("Referrer-Policy",
-        "strict-origin-when-cross-origin");
-  }
-
-  @Bean
-  public HeaderWriter contentSecurityPolicyHeaderWriter() {
-    String csp = "default-src 'self'; " +
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-        "style-src 'self' 'unsafe-inline'; " +
-        "img-src 'self' data: https:; " +
-        "font-src 'self' data:; " +
-        "connect-src 'self'; " +
-        "frame-ancestors 'none'; " +
-        "base-uri 'self'; " +
-        "form-action 'self'";
-
-    return new org.springframework.security.web.header.writers.StaticHeadersWriter("Content-Security-Policy", csp);
-  }
-
-  @Bean
-  public HeaderWriter permissionsPolicyHeaderWriter() {
-    String permissionsPolicy = "geolocation=(), " +
-        "microphone=(), " +
-        "camera=(), " +
-        "payment=(), " +
-        "usb=(), " +
-        "magnetometer=(), " +
-        "gyroscope=(), " +
-        "accelerometer=()";
-
-    return new org.springframework.security.web.header.writers.StaticHeadersWriter("Permissions-Policy",
-        permissionsPolicy);
-  }
-
-  @Bean
-  public HeaderWriter hstsHeaderWriter() {
-    org.springframework.security.web.util.matcher.RequestMatcher httpsMatcher = new org.springframework.security.web.util.matcher.AntPathRequestMatcher(
-        "/**");
-    return new org.springframework.security.web.header.writers.DelegatingRequestMatcherHeaderWriter(httpsMatcher,
-        new org.springframework.security.web.header.writers.StaticHeadersWriter("Strict-Transport-Security",
-            "max-age=31536000; includeSubDomains"));
-  }
-
-  @Bean
-  public HeaderWriter cacheControlHeaderWriter() {
-    return new org.springframework.security.web.header.writers.StaticHeadersWriter("Cache-Control",
-        "no-store, no-cache, must-revalidate, max-age=0");
-  }
-
-  @Bean
-  public HeaderWriter pragmaHeaderWriter() {
-    return new org.springframework.security.web.header.writers.StaticHeadersWriter("Pragma", "no-cache");
-  }
-
-  @Bean
-  public HeaderWriter expiresHeaderWriter() {
-    return new org.springframework.security.web.header.writers.StaticHeadersWriter("Expires", "0");
   }
 }

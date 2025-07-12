@@ -5,12 +5,12 @@ import com.authbase.dto.RefreshTokenRequest;
 import com.authbase.dto.LogoutRequest;
 import com.authbase.dto.RegisterRequest;
 import com.authbase.dto.AuthenticationResponse;
-import com.authbase.dto.SuccessResponse;
 import com.authbase.dto.UserResponse;
 import com.authbase.dto.ForgotPasswordRequest;
 import com.authbase.dto.ResetPasswordRequest;
 import com.authbase.dto.VerifyEmailRequest;
 import com.authbase.dto.ApiResponse;
+import com.authbase.mapper.UserMapper;
 import com.authbase.service.AuthenticationService;
 import com.authbase.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -26,13 +26,14 @@ import jakarta.validation.Valid;
  * Handles login, logout, token refresh, and user registration.
  */
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/api/auth")
 @Slf4j
 @RequiredArgsConstructor
 public class AuthController {
 
   private final AuthenticationService authenticationService;
   private final UserService userService;
+  private final UserMapper userMapper;
 
   /**
    * User login endpoint.
@@ -45,7 +46,7 @@ public class AuthController {
   public ResponseEntity<ApiResponse<AuthenticationResponse>> login(
       @Valid @RequestBody LoginRequest request,
       HttpServletRequest httpRequest) {
-    log.info("Login attempt for user: {}", request.username());
+    log.info("Login attempt for user: {}", request.email());
 
     try {
       // Extract IP address and user agent for security logging
@@ -53,12 +54,12 @@ public class AuthController {
       String userAgent = httpRequest.getHeader("User-Agent");
 
       AuthenticationService.AuthenticationResult result = authenticationService.authenticate(
-          request.username(), request.password(), ipAddress, userAgent);
+          request.email(), request.password(), ipAddress, userAgent);
 
       AuthenticationResponse authResponse = new AuthenticationResponse(
           result.getAccessToken(),
           result.getRefreshToken(),
-          result.getUser(),
+          userMapper.toDto(result.getUser()),
           "Login successful");
 
       ApiResponse<AuthenticationResponse> response = ApiResponse.success(
@@ -68,7 +69,7 @@ public class AuthController {
 
       return ResponseEntity.ok(response);
     } catch (Exception e) {
-      log.warn("Login failed for user: {} - {}", request.username(), e.getMessage());
+      log.warn("Login failed for user: {} - {}", request.email(), e.getMessage());
       throw new RuntimeException("Authentication failed: " + e.getMessage());
     }
   }
@@ -93,7 +94,7 @@ public class AuthController {
       AuthenticationResponse authResponse = new AuthenticationResponse(
           result.getAccessToken(),
           result.getRefreshToken(),
-          result.getUser(),
+          userMapper.toDto(result.getUser()),
           "Token refreshed successfully");
 
       ApiResponse<AuthenticationResponse> response = ApiResponse.success(
@@ -159,7 +160,7 @@ public class AuthController {
     try {
       var user = userService.registerUser(request.email(), request.password());
 
-      UserResponse userResponse = new UserResponse("User registered successfully", user, true);
+      UserResponse userResponse = new UserResponse("User registered successfully", userMapper.toDto(user), true);
       ApiResponse<UserResponse> response = ApiResponse.success(
           "User registered successfully",
           userResponse,
