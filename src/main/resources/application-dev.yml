@@ -8,27 +8,37 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.MySQLDialect
 
-  # Liquibase Configuration for Development
   liquibase:
     enabled: true
     change-log: classpath:db/changelog/db.changelog-master.yaml
     contexts: dev
     default-schema: authbase
 
-# CORS Configuration for Development
+  redis:
+    host: localhost
+    port: 6379
+    database: 0
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: -1ms
+
 cors:
   allowed-origin-patterns:
-    - "http://localhost:3000" # React default
-    - "http://localhost:4200" # Angular default
-    - "http://localhost:8080" # Vue default
-    - "http://localhost:5173" # Vite default
-    - "*" # Allow all for development
+    - "http://localhost:3000" # React
+    - "http://localhost:4200" # Angular
+    - "http://localhost:8080" # Spring Boot
+    - "http://localhost:5173" # Vue
+    - "*"
   allowed-methods:
     - "GET"
     - "POST"
@@ -53,8 +63,8 @@ cors:
   max-age: 3600
 
 logging:
-  level:
-    com.authbase: DEBUG
-    org.springframework.security: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  # level:
+  #   com.authbase: DEBUG
+  #   org.springframework.security: DEBUG
+  #   org.hibernate.SQL: DEBUG
+  #   org.hibernate.type.descriptor.sql.BasicBinder: TRACE

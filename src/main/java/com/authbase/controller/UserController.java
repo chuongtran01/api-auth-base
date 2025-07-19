@@ -1,7 +1,6 @@
 package com.authbase.controller;
 
-import com.authbase.dto.UserResponse;
-import com.authbase.dto.SuccessResponse;
+import com.authbase.dto.UserDto;
 import com.authbase.dto.ProfileUpdateRequest;
 import com.authbase.dto.PasswordChangeRequest;
 import com.authbase.dto.ApiResponse;
@@ -40,7 +39,7 @@ public class UserController {
    * @return user profile information
    */
   @GetMapping("/profile")
-  public ResponseEntity<ApiResponse<UserResponse>> getProfile(
+  public ResponseEntity<ApiResponse<UserDto>> getProfile(
       Authentication authentication,
       HttpServletRequest httpRequest) {
     // Get user from authentication - handle both UserDetails and User entities
@@ -56,10 +55,9 @@ public class UserController {
 
     log.debug("Getting profile for user: {}", user.getEmail());
 
-    UserResponse userResponse = new UserResponse("Profile retrieved successfully", userMapper.toDto(user), true);
-    ApiResponse<UserResponse> response = ApiResponse.success(
+    ApiResponse<UserDto> response = ApiResponse.success(
         "Profile retrieved successfully",
-        userResponse,
+        userMapper.toDto(user),
         httpRequest.getRequestURI());
 
     return ResponseEntity.ok(response);
@@ -74,7 +72,7 @@ public class UserController {
    * @return updated user profile
    */
   @PutMapping("/profile")
-  public ResponseEntity<ApiResponse<UserResponse>> updateProfile(
+  public ResponseEntity<ApiResponse<UserDto>> updateProfile(
       Authentication authentication,
       @Valid @RequestBody ProfileUpdateRequest request,
       HttpServletRequest httpRequest) {
@@ -99,10 +97,9 @@ public class UserController {
           request.firstName(),
           request.lastName());
 
-      UserResponse userResponse = new UserResponse("Profile updated successfully", userMapper.toDto(updatedUser), true);
-      ApiResponse<UserResponse> response = ApiResponse.success(
+      ApiResponse<UserDto> response = ApiResponse.success(
           "Profile updated successfully",
-          userResponse,
+          userMapper.toDto(updatedUser),
           httpRequest.getRequestURI());
 
       return ResponseEntity.ok(response);

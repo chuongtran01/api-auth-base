@@ -1,7 +1,6 @@
 package com.authbase.controller;
 
-import com.authbase.dto.UserResponse;
-import com.authbase.dto.SuccessResponse;
+import com.authbase.dto.UserDto;
 import com.authbase.dto.AccountStatusRequest;
 import com.authbase.dto.UserCountResponse;
 import com.authbase.dto.RoleCreateRequest;
@@ -74,7 +73,7 @@ public class AdminController {
    */
   @GetMapping("/users/{userId}")
   @RequirePermission("USER_READ")
-  public ResponseEntity<ApiResponse<UserResponse>> getUserById(
+  public ResponseEntity<ApiResponse<UserDto>> getUserById(
       @PathVariable Long userId,
       HttpServletRequest httpRequest) {
     log.info("Admin requesting user by ID: {}", userId);
@@ -83,10 +82,9 @@ public class AdminController {
       User user = userService.findById(userId)
           .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
 
-      UserResponse userResponse = new UserResponse("User retrieved successfully", userMapper.toDto(user), true);
-      ApiResponse<UserResponse> response = ApiResponse.success(
+      ApiResponse<UserDto> response = ApiResponse.success(
           "User retrieved successfully",
-          userResponse,
+          userMapper.toDto(user),
           httpRequest.getRequestURI());
 
       return ResponseEntity.ok(response);
@@ -106,7 +104,7 @@ public class AdminController {
    */
   @PutMapping("/users/{userId}/status")
   @RequirePermission("USER_WRITE")
-  public ResponseEntity<ApiResponse<UserResponse>> updateUserStatus(
+  public ResponseEntity<ApiResponse<UserDto>> updateUserStatus(
       @PathVariable Long userId,
       @Valid @RequestBody AccountStatusRequest request,
       HttpServletRequest httpRequest) {
@@ -116,13 +114,9 @@ public class AdminController {
     try {
       User updatedUser = userService.updateAccountStatus(userId, request.enabled());
 
-      UserResponse userResponse = new UserResponse(
+      ApiResponse<UserDto> response = ApiResponse.success(
           "User status updated successfully",
           userMapper.toDto(updatedUser),
-          true);
-      ApiResponse<UserResponse> response = ApiResponse.success(
-          "User status updated successfully",
-          userResponse,
           httpRequest.getRequestURI());
 
       return ResponseEntity.ok(response);

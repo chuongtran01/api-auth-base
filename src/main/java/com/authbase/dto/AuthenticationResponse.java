@@ -8,8 +8,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record AuthenticationResponse(
-        String accessToken,
-        String refreshToken,
-        UserDto user,
-        String message) {
+                String accessToken,
+                String refreshToken,
+                UserDto user) {
 }

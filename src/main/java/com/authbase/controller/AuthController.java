@@ -5,16 +5,18 @@ import com.authbase.dto.RefreshTokenRequest;
 import com.authbase.dto.LogoutRequest;
 import com.authbase.dto.RegisterRequest;
 import com.authbase.dto.AuthenticationResponse;
-import com.authbase.dto.UserResponse;
 import com.authbase.dto.ForgotPasswordRequest;
 import com.authbase.dto.ResetPasswordRequest;
 import com.authbase.dto.VerifyEmailRequest;
 import com.authbase.dto.ApiResponse;
+import com.authbase.dto.UserDto;
 import com.authbase.mapper.UserMapper;
 import com.authbase.service.AuthenticationService;
 import com.authbase.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -59,8 +61,7 @@ public class AuthController {
       AuthenticationResponse authResponse = new AuthenticationResponse(
           result.getAccessToken(),
           result.getRefreshToken(),
-          userMapper.toDto(result.getUser()),
-          "Login successful");
+          userMapper.toDto(result.getUser()));
 
       ApiResponse<AuthenticationResponse> response = ApiResponse.success(
           "Login successful",
@@ -68,6 +69,9 @@ public class AuthController {
           httpRequest.getRequestURI());
 
       return ResponseEntity.ok(response);
+    } catch (BadCredentialsException e) {
+      log.warn("Login failed for user: {} - {}", request.email(), e.getMessage());
+      throw new BadCredentialsException("Invalid credentials");
     } catch (Exception e) {
       log.warn("Login failed for user: {} - {}", request.email(), e.getMessage());
       throw new RuntimeException("Authentication failed: " + e.getMessage());
@@ -94,8 +98,7 @@ public class AuthController {
       AuthenticationResponse authResponse = new AuthenticationResponse(
           result.getAccessToken(),
           result.getRefreshToken(),
-          userMapper.toDto(result.getUser()),
-          "Token refreshed successfully");
+          userMapper.toDto(result.getUser()));
 
       ApiResponse<AuthenticationResponse> response = ApiResponse.success(
           "Token refreshed successfully",
@@ -152,7 +155,7 @@ public class AuthController {
    * @return registration result
    */
   @PostMapping("/register")
-  public ResponseEntity<ApiResponse<UserResponse>> register(
+  public ResponseEntity<ApiResponse<UserDto>> register(
       @Valid @RequestBody RegisterRequest request,
       HttpServletRequest httpRequest) {
     log.info("Registration attempt for email: {}", request.email());
@@ -160,10 +163,9 @@ public class AuthController {
     try {
       var user = userService.registerUser(request.email(), request.password());
 
-      UserResponse userResponse = new UserResponse("User registered successfully", userMapper.toDto(user), true);
-      ApiResponse<UserResponse> response = ApiResponse.success(
+      ApiResponse<UserDto> response = ApiResponse.success(
           "User registered successfully",
-          userResponse,
+          userMapper.toDto(user),
           httpRequest.getRequestURI());
 
       return ResponseEntity.ok(response);

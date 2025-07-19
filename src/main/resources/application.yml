@@ -1,53 +1,27 @@
 spring:
   application:
     name: api-auth-base
-
   profiles:
     active: dev
-
-  # Jackson Configuration
   jackson:
     default-property-inclusion: non_null
     serialization:
       write-dates-as-timestamps: false
 
-  # Redis Configuration
-  redis:
-    host: localhost
-    port: 6379
-    password: # optional - set in production
-    database: 0
-    timeout: 2000ms
-    lettuce:
-      pool:
-        max-active: 8
-        max-idle: 8
-        min-idle: 0
-        max-wait: -1ms
-
-# JWT Configuration
 jwt:
   secret: 714171e8028ac915884598667658d6fccbb0a43abb4455d62831c948f628f0744bd2727ba1f5b061c220ba987df8284cde4acc74c3ea32381381b1d5df23e375
   access-token-expiration: 900000 # 15 minutes in milliseconds
   refresh-token-expiration: 604800000 # 7 days in milliseconds
 
-# Server Configuration
 server:
   port: 8080
   servlet:
     context-path: /api
 
-# Logging Configuration
 logging:
-  level:
-    com.authbase: DEBUG
-    org.springframework.security: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
 
-# OpenAPI Configuration
 springdoc:
   api-docs:
     path: /api-docs
@@ -55,12 +29,10 @@ springdoc:
     path: /swagger-ui.html
     operations-sorter: method
 
-# Redis Logout Configuration
 auth:
   redis:
     enabled: true
     token-blacklist-prefix: "blacklist:"
-
   logout:
     blacklist-access-tokens: true
     remove-refresh-tokens: true
