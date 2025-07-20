@@ -23,7 +23,7 @@ import jakarta.validation.Valid;
  * deletion.
  */
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/users")
 @Slf4j
 @RequiredArgsConstructor
 public class UserController {

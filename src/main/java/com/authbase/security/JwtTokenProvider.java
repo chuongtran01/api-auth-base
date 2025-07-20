@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
@@ -213,30 +214,57 @@ public class JwtTokenProvider {
   }
 
   /**
-   * Validate JWT token.
+   * Validate JWT token and throw specific exceptions for different validation
+   * failures.
    * 
-   * @param token JWT token
-   * @return true if valid, false otherwise
+   * @param token JWT token to validate
+   * @throws SecurityException        if signature is invalid
+   * @throws MalformedJwtException    if token is malformed
+   * @throws ExpiredJwtException      if token is expired
+   * @throws UnsupportedJwtException  if token format is unsupported
+   * @throws IllegalArgumentException if token is empty or null
    */
-  public boolean validateToken(String token) {
+  public void validateToken(String token) {
+    if (!StringUtils.hasText(token)) {
+      throw new IllegalArgumentException("JWT token cannot be empty or null");
+    }
+
     try {
       Jwts.parser()
           .verifyWith(getSigningKey())
           .build()
           .parseSignedClaims(token);
-      return true;
     } catch (SecurityException ex) {
       logger.error("Invalid JWT signature: {}", ex.getMessage());
+      throw ex;
     } catch (MalformedJwtException ex) {
       logger.error("Invalid JWT token: {}", ex.getMessage());
+      throw ex;
     } catch (ExpiredJwtException ex) {
       logger.error("Expired JWT token: {}", ex.getMessage());
+      throw ex;
     } catch (UnsupportedJwtException ex) {
       logger.error("Unsupported JWT token: {}", ex.getMessage());
+      throw ex;
     } catch (IllegalArgumentException ex) {
       logger.error("JWT claims string is empty: {}", ex.getMessage());
+      throw ex;
     }
-    return false;
+  }
+
+  /**
+   * Check if token is valid without throwing exceptions.
+   * 
+   * @param token JWT token to validate
+   * @return true if token is valid, false otherwise
+   */
+  public boolean isTokenValid(String token) {
+    try {
+      validateToken(token);
+      return true;
+    } catch (Exception ex) {
+      return false;
+    }
   }
 
   /**

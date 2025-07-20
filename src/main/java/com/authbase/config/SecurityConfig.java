@@ -46,6 +46,7 @@ public class SecurityConfig {
   private final HeaderWriter cacheControlHeaderWriter;
   private final HeaderWriter pragmaHeaderWriter;
   private final HeaderWriter expiresHeaderWriter;
+  private final WhitelistProperties whitelistProperties;
 
   public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
       JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
@@ -61,7 +62,8 @@ public class SecurityConfig {
       HeaderWriter hstsHeaderWriter,
       HeaderWriter cacheControlHeaderWriter,
       HeaderWriter pragmaHeaderWriter,
-      HeaderWriter expiresHeaderWriter) {
+      HeaderWriter expiresHeaderWriter,
+      WhitelistProperties whitelistProperties) {
     this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
     this.jwtAccessDeniedHandler = jwtAccessDeniedHandler;
@@ -77,6 +79,7 @@ public class SecurityConfig {
     this.cacheControlHeaderWriter = cacheControlHeaderWriter;
     this.pragmaHeaderWriter = pragmaHeaderWriter;
     this.expiresHeaderWriter = expiresHeaderWriter;
+    this.whitelistProperties = whitelistProperties;
   }
 
   /**
@@ -113,23 +116,21 @@ public class SecurityConfig {
             .addHeaderWriter(expiresHeaderWriter))
 
         // Configure authorization rules
-        .authorizeHttpRequests(authz -> authz
-            // Public endpoints
-            .requestMatchers("/api/auth/**").permitAll()
-            .requestMatchers("/api/swagger-ui.html", "/api/api-docs/**", "/api/api-docs",
-                "/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/api-docs", "/health/**",
-                "/actuator/**")
-            .permitAll()
-            .requestMatchers("/api/health/**").permitAll()
+        .authorizeHttpRequests(authz -> {
+          // Configure whitelisted endpoints from WhitelistProperties
+          whitelistProperties.getEndpoints().forEach(pattern -> {
+            authz.requestMatchers(pattern).permitAll();
+          });
 
-            // Admin endpoints
-            .requestMatchers("/api/admin/**").hasRole("ADMIN")
+          // Admin endpoints
+          authz.requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-            // User endpoints (authenticated users)
-            .requestMatchers("/api/users/**").authenticated()
+              // User endpoints (authenticated users)
+              .requestMatchers("/api/users/**").authenticated()
 
-            // All other requests require authentication
-            .anyRequest().authenticated())
+              // All other requests require authentication
+              .anyRequest().authenticated();
+        })
 
         // Configure authentication provider
         .authenticationProvider(authenticationProvider())

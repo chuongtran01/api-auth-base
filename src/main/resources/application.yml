@@ -37,3 +37,42 @@ auth:
     blacklist-access-tokens: true
     remove-refresh-tokens: true
     log-events: true
+
+# Whitelist endpoints configuration
+# These endpoints are publicly accessible without authentication
+security:
+  whitelist:
+    endpoints:
+      # Authentication endpoints (public)
+      - "/api/auth/**"
+
+      # Health check endpoints (public)
+      - "/api/health/**"
+      - "/health/**"
+
+      # API Documentation endpoints (public)
+      - "/api/swagger-ui.html"
+      - "/api/api-docs/**"
+      - "/api/api-docs"
+      - "/swagger-ui/**"
+      - "/swagger-ui.html"
+      - "/api-docs/**"
+      - "/api-docs"
+
+      # Actuator endpoints (public)
+      - "/actuator/**"
+
+      # Static resources (public)
+      - "/static/**"
+      - "/css/**"
+      - "/js/**"
+      - "/images/**"
+      - "/favicon.ico"
+
+      # Error pages (public)
+      - "/error"
+
+      # Root endpoint (public)
+      - "/"
+      # OPTIONS requests for CORS preflight (public)
+      - "/**"

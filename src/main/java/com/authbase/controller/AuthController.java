@@ -28,7 +28,7 @@ import jakarta.validation.Valid;
  * Handles login, logout, token refresh, and user registration.
  */
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/auth")
 @Slf4j
 @RequiredArgsConstructor
 public class AuthController {

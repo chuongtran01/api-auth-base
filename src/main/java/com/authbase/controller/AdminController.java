@@ -29,7 +29,7 @@ import java.util.List;
  * All endpoints require specific permissions for access.
  */
 @RestController
-@RequestMapping("/api/admin")
+@RequestMapping("/admin")
 @Slf4j
 @RequiredArgsConstructor
 public class AdminController {

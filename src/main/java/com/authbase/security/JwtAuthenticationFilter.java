@@ -1,12 +1,18 @@
 package com.authbase.security;
 
+import com.authbase.config.WhitelistProperties;
 import com.authbase.service.RedisTokenService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.UnsupportedJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -16,8 +22,11 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -34,6 +43,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
   private final JwtTokenProvider tokenProvider;
   private final RedisTokenService redisTokenService;
+  private final WhitelistProperties whitelistProperties;
+  private final ObjectMapper objectMapper = new ObjectMapper();
 
   @Override
   protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -46,44 +57,90 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // Check if token is blacklisted first
         if (redisTokenService.isTokenBlacklisted(jwt)) {
           log.warn("Request with blacklisted token rejected: {}", request.getRequestURI());
-          response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-          response.getWriter().write("Token has been invalidated");
+          handleAuthenticationError(response, "Token has been invalidated", "TOKEN_BLACKLISTED");
           return;
         }
 
         // Validate token structure and signature
-        if (tokenProvider.validateToken(jwt)) {
-          // Extract user information from the token
-          String username = tokenProvider.getUsernameFromToken(jwt);
-          Long userId = tokenProvider.getUserIdFromToken(jwt);
-          String email = tokenProvider.getEmailFromToken(jwt);
-          String rolesString = tokenProvider.getRolesFromToken(jwt);
+        try {
+          tokenProvider.validateToken(jwt);
+        } catch (ExpiredJwtException ex) {
+          log.warn("Expired JWT token for request: {}", request.getRequestURI(), ex);
+          handleAuthenticationError(response, "Token has expired", "TOKEN_EXPIRED");
+          return;
+        } catch (MalformedJwtException ex) {
+          log.warn("Malformed JWT token for request: {}", request.getRequestURI(), ex);
+          handleAuthenticationError(response, "Invalid token format", "TOKEN_MALFORMED");
+          return;
+        } catch (UnsupportedJwtException ex) {
+          log.warn("Unsupported JWT token for request: {}", request.getRequestURI(), ex);
+          handleAuthenticationError(response, "Unsupported token format", "TOKEN_UNSUPPORTED");
+          return;
+        } catch (SecurityException ex) {
+          log.warn("Invalid JWT signature for request: {}", request.getRequestURI(), ex);
+          handleAuthenticationError(response, "Invalid token signature", "TOKEN_INVALID_SIGNATURE");
+          return;
+        } catch (IllegalArgumentException ex) {
+          log.warn("Invalid JWT claims for request: {}", request.getRequestURI(), ex);
+          handleAuthenticationError(response, "Invalid token claims", "TOKEN_INVALID_CLAIMS");
+          return;
+        }
 
-          if (StringUtils.hasText(username) && SecurityContextHolder.getContext().getAuthentication() == null) {
-            // Create UserDetails from token claims (no database call)
-            UserDetails userDetails = createUserDetailsFromToken(username, userId, email, rolesString);
+        // Extract user information from the token
+        String username = tokenProvider.getUsernameFromToken(jwt);
+        Long userId = tokenProvider.getUserIdFromToken(jwt);
+        String email = tokenProvider.getEmailFromToken(jwt);
+        String rolesString = tokenProvider.getRolesFromToken(jwt);
 
-            // Create authorities from roles in token
-            List<SimpleGrantedAuthority> authorities = getAuthoritiesFromRoles(rolesString);
+        if (StringUtils.hasText(username) && SecurityContextHolder.getContext().getAuthentication() == null) {
+          // Create UserDetails from token claims (no database call)
+          UserDetails userDetails = createUserDetailsFromToken(username, userId, email, rolesString);
 
-            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                userDetails, null, authorities);
+          // Create authorities from roles in token
+          List<SimpleGrantedAuthority> authorities = getAuthoritiesFromRoles(rolesString);
 
-            authentication
-                .setDetails(new org.springframework.security.web.authentication.WebAuthenticationDetailsSource()
-                    .buildDetails(request));
+          UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+              userDetails, null, authorities);
 
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+          authentication
+              .setDetails(new org.springframework.security.web.authentication.WebAuthenticationDetailsSource()
+                  .buildDetails(request));
 
-            log.debug("Set stateless authentication for user: {} (ID: {})", username, userId);
-          }
+          SecurityContextHolder.getContext().setAuthentication(authentication);
+
+          log.debug("Set stateless authentication for user: {} (ID: {})", username, userId);
         }
       }
     } catch (Exception ex) {
-      log.error("Could not set user authentication in security context", ex);
+      // Log the full exception for debugging (server-side only)
+      log.error("Unexpected error during JWT authentication for request: {}", request.getRequestURI(), ex);
+
+      // Return generic error to client (no stack trace)
+      handleAuthenticationError(response, "Authentication failed", "AUTHENTICATION_ERROR");
+      return;
     }
 
     filterChain.doFilter(request, response);
+  }
+
+  /**
+   * Handle authentication errors by returning structured JSON responses.
+   * This prevents stack traces from being exposed to the client.
+   */
+  private void handleAuthenticationError(HttpServletResponse response, String message, String errorCode)
+      throws IOException {
+
+    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+
+    Map<String, Object> errorResponse = new HashMap<>();
+    errorResponse.put("success", false);
+    errorResponse.put("message", message);
+    errorResponse.put("errorCode", errorCode);
+    errorResponse.put("timestamp", LocalDateTime.now().toString());
+
+    String jsonResponse = objectMapper.writeValueAsString(errorResponse);
+    response.getWriter().write(jsonResponse);
   }
 
   /**
@@ -144,24 +201,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
   /**
    * Check if the request should be filtered.
-   * Skip filtering for certain paths like authentication endpoints.
+   * Skip filtering for whitelisted endpoints that don't require authentication.
    * 
    * @param request HTTP request
-   * @return true if should be filtered, false otherwise
+   * @return true if should NOT be filtered (whitelisted), false otherwise
    */
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
     String path = request.getRequestURI();
+    String method = request.getMethod();
 
-    // Skip filtering for authentication endpoints and public resources
-    return path.startsWith("/api/auth/") ||
-        path.startsWith("/api/swagger-ui") ||
-        path.startsWith("/api/api-docs") ||
-        path.startsWith("/api-docs") ||
-        path.equals("/api/swagger-ui.html") ||
-        path.equals("/api/api-docs") ||
-        path.equals("/swagger-ui.html") ||
-        path.equals("/api-docs") ||
-        path.startsWith("/api/health/");
+    // Use WhitelistProperties to check if the path is whitelisted
+    boolean isWhitelisted = whitelistProperties.isWhitelisted(path);
+
+    if (isWhitelisted) {
+      log.debug("JWT filter SKIPPED for whitelisted endpoint: {} {}", method, path);
+    } else {
+      log.debug("JWT filter will PROCESS protected endpoint: {} {}", method, path);
+    }
+
+    return isWhitelisted;
   }
 }
